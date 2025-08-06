@@ -1,0 +1,45 @@
+FROM alpine:3.19
+
+# Install dependencies
+RUN apk add --no-cache \
+    go \
+    git \
+    make \
+    curl \
+    openssl \
+    bash \
+    cloud-init \
+    openrc
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Build the application
+RUN go build -o cloud-update src/cmd/cloud-update/main.go
+
+# Setup OpenRC
+RUN mkdir -p /run/openrc && \
+    touch /run/openrc/softlevel && \
+    rc-status || true
+
+# Install the service
+RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
+    cp cloud-update /opt/cloud-update/ && \
+    cp src/init/openrc/cloud-update /etc/init.d/ && \
+    chmod 755 /etc/init.d/cloud-update
+
+# Create config with test secret
+RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_SECRET=test-secret-key-for-e2e' >> /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_LOG_LEVEL=debug' >> /etc/cloud-update/config.env && \
+    chmod 600 /etc/cloud-update/config.env
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Start the service directly (OpenRC in Docker is complex)
+CMD ["/opt/cloud-update/cloud-update"]

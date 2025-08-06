@@ -1,0 +1,297 @@
+version: 2
+
+project_name: cloud-update
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./src/...
+
+builds:
+  - id: cloud-update
+    main: ./src/cmd/cloud-update
+    binary: cloud-update
+    env:
+      - CGO_ENABLED=0
+    
+    goos:
+      - linux
+      - darwin
+      - freebsd
+      - openbsd
+    
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - 386
+    
+    goarm:
+      - 6
+      - 7
+    
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: darwin
+        goarch: arm
+      - goos: freebsd
+        goarch: arm
+    
+    ldflags:
+      - -s -w
+      - -X cloud-update/src/internal/version.Version={{.Version}}
+      - -X cloud-update/src/internal/version.Commit={{.ShortCommit}}
+      - -X cloud-update/src/internal/version.Date={{.Date}}
+      - -extldflags "-static"
+    
+    flags:
+      - -trimpath
+    
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: cloud-update
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    
+    files:
+      - LICENSE*
+      - README.md
+      - init/**/*
+      - install.sh
+      - uninstall.sh
+    
+    wrap_in_directory: true
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-dev"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^build:'
+      - '^style:'
+      - '^refactor:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  
+  groups:
+    - title: "🚀 Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "⚡ Performance"
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "🔒 Security"
+      regexp: '^.*?sec(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: "📦 Other"
+      order: 999
+
+release:
+  github:
+    owner: '{{ .Env.GITHUB_REPOSITORY_OWNER }}'
+    name: cloud-update
+  
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  
+  header: |
+    ## Cloud Update v{{.Version}}
+    
+    Webhook service for cloud-init and system operations.
+  
+  footer: |
+    ## Installation
+    
+    ### Using the install script:
+    ```bash
+    tar -xzf cloud-update_{{.Version}}_linux_amd64.tar.gz
+    cd cloud-update_{{.Version}}_linux_amd64
+    sudo ./install.sh
+    ```
+    
+    ### Manual installation:
+    ```bash
+    sudo cp cloud-update /opt/cloud-update/
+    sudo cp init/systemd/cloud-update.service /etc/systemd/system/  # For systemd
+    # OR
+    sudo cp init/openrc/cloud-update /etc/init.d/  # For OpenRC (Alpine)
+    ```
+    
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+nfpms:
+  - id: packages
+    package_name: cloud-update
+    vendor: Cloud Update Project
+    homepage: https://github.com/{{ .Env.GITHUB_REPOSITORY }}
+    maintainer: Cloud Update Maintainers
+    description: Secure webhook service for cloud-init and system operations
+    license: MIT
+    
+    formats:
+      - deb
+      - rpm
+      - apk
+    
+    bindir: /opt/cloud-update
+    
+    contents:
+      - src: ./src/init/systemd/cloud-update.service
+        dst: /etc/systemd/system/cloud-update.service
+        type: config
+        file_info:
+          mode: 0644
+        packager: deb
+      
+      - src: ./src/init/systemd/cloud-update.service
+        dst: /etc/systemd/system/cloud-update.service
+        type: config
+        file_info:
+          mode: 0644
+        packager: rpm
+      
+      - src: ./src/init/openrc/cloud-update
+        dst: /etc/init.d/cloud-update
+        type: config
+        file_info:
+          mode: 0755
+        packager: apk
+      
+      - src: ./install.sh
+        dst: /opt/cloud-update/install.sh
+        file_info:
+          mode: 0755
+      
+      - src: ./uninstall.sh
+        dst: /opt/cloud-update/uninstall.sh
+        file_info:
+          mode: 0755
+    
+    scripts:
+      postinstall: |
+        #!/bin/sh
+        # Create config directory
+        mkdir -p /etc/cloud-update
+        chmod 700 /etc/cloud-update
+        
+        # Create config file if it doesn't exist
+        if [ ! -f /etc/cloud-update/config.env ]; then
+          cat > /etc/cloud-update/config.env << 'EOF'
+        # Cloud Update Configuration
+        CLOUD_UPDATE_PORT=9999
+        CLOUD_UPDATE_SECRET=CHANGE_ME_PLEASE_GENERATE_SECRET
+        CLOUD_UPDATE_LOG_LEVEL=info
+        EOF
+          chmod 600 /etc/cloud-update/config.env
+        fi
+        
+        # Reload systemd if available
+        if command -v systemctl >/dev/null 2>&1; then
+          systemctl daemon-reload
+        fi
+      
+      preremove: |
+        #!/bin/sh
+        # Stop service if running
+        if command -v systemctl >/dev/null 2>&1; then
+          systemctl stop cloud-update || true
+          systemctl disable cloud-update || true
+        elif command -v rc-service >/dev/null 2>&1; then
+          rc-service cloud-update stop || true
+          rc-update del cloud-update || true
+        fi
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+    output: true
+
+docker:
+  - image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
+    
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    
+    extra_files:
+      - init
+    
+    dockerfile: |
+      FROM alpine:3.19
+      RUN apk add --no-cache ca-certificates tzdata
+      COPY cloud-update /usr/local/bin/
+      EXPOSE 9999
+      ENTRYPOINT ["cloud-update"]
+    
+    goarch: amd64
+  
+  - image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"
+    
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    
+    extra_files:
+      - init
+    
+    dockerfile: |
+      FROM alpine:3.19
+      RUN apk add --no-cache ca-certificates tzdata
+      COPY cloud-update /usr/local/bin/
+      EXPOSE 9999
+      ENTRYPOINT ["cloud-update"]
+    
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}"
+    image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
+  
+  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest"
+    image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"

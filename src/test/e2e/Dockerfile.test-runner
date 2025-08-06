@@ -1,0 +1,19 @@
+FROM golang:1.21-alpine
+
+# Install test dependencies
+RUN apk add --no-cache \
+    curl \
+    bash \
+    git
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Download dependencies
+RUN go mod download
+
+# Install test tools
+RUN go install -v gotest.tools/gotestsum@latest
+
+ENTRYPOINT ["/bin/sh"]

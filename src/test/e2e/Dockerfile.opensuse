@@ -1,0 +1,37 @@
+FROM opensuse/leap:15.5
+
+# Install dependencies
+RUN zypper refresh && zypper install -y \
+    go \
+    git \
+    make \
+    curl \
+    openssl \
+    systemd \
+    cloud-init \
+    && zypper clean -a
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Build the application
+RUN go build -o cloud-update src/cmd/cloud-update/main.go
+
+# Install the service using setup command
+RUN ./cloud-update --setup || true
+
+# Override config for testing
+RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_SECRET=test-secret-key-for-e2e' >> /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_LOG_LEVEL=debug' >> /etc/cloud-update/config.env && \
+    chmod 600 /etc/cloud-update/config.env
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Run the service directly
+CMD ["/opt/cloud-update/cloud-update"]

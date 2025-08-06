@@ -1,0 +1,288 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # ============================================
+  # PHASE 1: Quality Checks (runs on all events)
+  # ============================================
+  
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    outputs:
+      should_continue: ${{ steps.check.outputs.continue }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Check if should continue
+        id: check
+        run: |
+          # Skip if commit message contains [skip ci]
+          if [[ "${{ github.event.head_commit.message }}" == *"[skip ci]"* ]]; then
+            echo "continue=false" >> $GITHUB_OUTPUT
+          else
+            echo "continue=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Lint
+        if: steps.check.outputs.continue == 'true'
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m
+      
+      - name: Security Scan
+        if: steps.check.outputs.continue == 'true'
+        uses: securego/gosec@master
+        with:
+          args: ./...
+      
+      - name: Format Check
+        if: steps.check.outputs.continue == 'true'
+        run: |
+          gofmt -l .
+          test -z "$(gofmt -l .)"
+
+  # ============================================
+  # PHASE 2: Testing (depends on quality)
+  # ============================================
+  
+  test:
+    name: Tests - ${{ matrix.os }}
+    needs: quality
+    if: needs.quality.outputs.should_continue == 'true'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go: ['1.21']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+      
+      - name: Unit Tests
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./src/...
+      
+      - name: Upload Coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.txt
+          flags: unittests
+      
+      - name: Test Build
+        run: |
+          make build
+          ./build/cloud-update --version
+
+  # ============================================
+  # PHASE 3: E2E Tests (selective distributions)
+  # ============================================
+  
+  e2e:
+    name: E2E - ${{ matrix.distro }}
+    needs: test
+    if: |
+      github.event_name == 'pull_request' || 
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test core distributions only
+        distro: [alpine, ubuntu, rockylinux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: E2E Test ${{ matrix.distro }}
+        run: |
+          make e2e-distro DISTRO=${{ matrix.distro }}
+      
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs cloud-update-test 2>&1
+
+  # ============================================
+  # PHASE 4: Build Validation (PR only)
+  # ============================================
+  
+  validate:
+    name: Build Validation
+    needs: [test, e2e]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Build all platforms
+        run: |
+          make build-all
+          ls -la build/
+      
+      - name: Test setup command
+        run: |
+          ./build/cloud-update-linux-amd64 --help
+          ./build/cloud-update-linux-amd64 --version
+      
+      - name: Check PR status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            console.log(`PR #${pr.number}: ${pr.title}`);
+            console.log(`Status: ${pr.state}`);
+            console.log(`Mergeable: ${pr.mergeable}`);
+
+  # ============================================
+  # PHASE 5: Release (main branch + approved PR)
+  # ============================================
+  
+  release:
+    name: Release
+    needs: [test, e2e]
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check if from merged PR
+        id: pr_check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit = context.payload.head_commit;
+            const isMerge = commit.message.includes('Merge pull request') || 
+                           commit.parents?.length > 1;
+            
+            if (!isMerge) {
+              console.log('Not a merge commit, skipping release');
+              core.setOutput('should_release', 'false');
+              return;
+            }
+            
+            core.setOutput('should_release', 'true');
+      
+      - name: Setup Go
+        if: steps.pr_check.outputs.should_release == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Setup Release Tools
+        if: steps.pr_check.outputs.should_release == 'true'
+        run: |
+          # Install goreleaser
+          curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz
+          sudo mv goreleaser /usr/local/bin/
+      
+      - name: Determine Version
+        if: steps.pr_check.outputs.should_release == 'true'
+        id: version
+        run: |
+          # Simple semantic versioning
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Last tag: $LAST_TAG"
+          
+          # Increment patch version
+          VERSION=$(echo $LAST_TAG | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          echo "New version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        if: steps.pr_check.outputs.should_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          
+          # Create tag
+          git tag -a ${{ steps.version.outputs.version }} -m "Release ${{ steps.version.outputs.version }}"
+          git push origin ${{ steps.version.outputs.version }}
+          
+          # Run goreleaser
+          goreleaser release --clean
+
+  # ============================================
+  # PHASE 6: Status Report (always runs)
+  # ============================================
+  
+  status:
+    name: Pipeline Status
+    needs: [quality, test, e2e, validate, release]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Status
+        run: |
+          echo "Pipeline Summary:"
+          echo "================="
+          echo "Quality: ${{ needs.quality.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "E2E: ${{ needs.e2e.result }}"
+          echo "Validate: ${{ needs.validate.result }}"
+          echo "Release: ${{ needs.release.result }}"
+          
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "❌ Pipeline failed"
+            exit 1
+          else
+            echo "✅ Pipeline succeeded"
+          fi

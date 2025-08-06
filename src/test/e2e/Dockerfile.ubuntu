@@ -1,0 +1,43 @@
+FROM ubuntu:22.04
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    golang-go \
+    git \
+    make \
+    curl \
+    openssl \
+    systemd \
+    systemd-sysv \
+    cloud-init \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Build the application
+RUN go build -o cloud-update src/cmd/cloud-update/main.go
+
+# Install the service
+RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
+    cp cloud-update /opt/cloud-update/ && \
+    cp src/init/systemd/cloud-update.service /etc/systemd/system/
+
+# Create config with test secret
+RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_SECRET=test-secret-key-for-e2e' >> /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_LOG_LEVEL=debug' >> /etc/cloud-update/config.env && \
+    chmod 600 /etc/cloud-update/config.env
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Run the service directly (systemd in Docker requires privileged mode)
+CMD ["/opt/cloud-update/cloud-update"]

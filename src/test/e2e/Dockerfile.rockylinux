@@ -1,0 +1,39 @@
+FROM rockylinux:9
+
+# Install dependencies
+RUN dnf install -y \
+    golang \
+    git \
+    make \
+    curl \
+    openssl \
+    systemd \
+    cloud-init \
+    && dnf clean all
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Build the application
+RUN go build -o cloud-update src/cmd/cloud-update/main.go
+
+# Install the service
+RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
+    cp cloud-update /opt/cloud-update/ && \
+    cp src/init/systemd/cloud-update.service /etc/systemd/system/
+
+# Create config with test secret
+RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_SECRET=test-secret-key-for-e2e' >> /etc/cloud-update/config.env && \
+    echo 'CLOUD_UPDATE_LOG_LEVEL=debug' >> /etc/cloud-update/config.env && \
+    chmod 600 /etc/cloud-update/config.env
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Run the service directly
+CMD ["/opt/cloud-update/cloud-update"]

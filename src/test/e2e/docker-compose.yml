@@ -1,0 +1,200 @@
+# docker compose v2 - no version field needed
+
+services:
+  alpine:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.alpine
+    container_name: cloud-update-alpine
+    ports:
+      - "9991:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  ubuntu:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.ubuntu
+    container_name: cloud-update-ubuntu
+    ports:
+      - "9992:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  debian:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.debian
+    container_name: cloud-update-debian
+    ports:
+      - "9993:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  rockylinux:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.rockylinux
+    container_name: cloud-update-rockylinux
+    ports:
+      - "9994:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  fedora:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.fedora
+    container_name: cloud-update-fedora
+    ports:
+      - "9995:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  arch:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.arch
+    container_name: cloud-update-arch
+    ports:
+      - "9996:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  opensuse:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.opensuse
+    container_name: cloud-update-opensuse
+    ports:
+      - "9997:9999"
+    environment:
+      - CLOUD_UPDATE_PORT=9999
+      - CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+      - CLOUD_UPDATE_LOG_LEVEL=debug
+    networks:
+      - cloud-update-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: test/e2e/Dockerfile.test-runner
+    container_name: cloud-update-test-runner
+    depends_on:
+      alpine:
+        condition: service_healthy
+      ubuntu:
+        condition: service_healthy
+      debian:
+        condition: service_healthy
+      rockylinux:
+        condition: service_healthy
+      fedora:
+        condition: service_healthy
+      arch:
+        condition: service_healthy
+      opensuse:
+        condition: service_healthy
+    networks:
+      - cloud-update-test
+    environment:
+      - E2E_SECRET=test-secret-key-for-e2e
+    volumes:
+      - test-results:/results
+    command: |
+      sh -c "
+        echo 'Waiting for services to be ready...'
+        sleep 5
+        echo 'Running E2E tests for all distributions...'
+        
+        FAILED=0
+        
+        for DISTRO in alpine ubuntu debian rockylinux fedora arch opensuse; do
+          echo \"=== Testing \$DISTRO ===\" | tee -a /results/e2e-results.txt
+          E2E_BASE_URL=http://\$DISTRO:9999 go test -v ./test/e2e/... 2>&1 | tee -a /results/e2e-results.txt
+          if [ \$? -ne 0 ]; then
+            FAILED=\$((FAILED + 1))
+          fi
+        done
+        
+        if [ \$FAILED -eq 0 ]; then
+          echo 'All E2E tests completed successfully!' | tee -a /results/e2e-results.txt
+          exit 0
+        else
+          echo \"\$FAILED distributions failed tests\" | tee -a /results/e2e-results.txt
+          exit 1
+        fi
+      "
+
+networks:
+  cloud-update-test:
+    driver: bridge
+
+volumes:
+  test-results:

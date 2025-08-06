@@ -1,0 +1,163 @@
+package system
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+type Distribution string
+
+const (
+	DistroAlpine  Distribution = "alpine"
+	DistroDebian  Distribution = "debian"
+	DistroUbuntu  Distribution = "ubuntu"
+	DistroRHEL    Distribution = "rhel"
+	DistroCentOS  Distribution = "centos"
+	DistroFedora  Distribution = "fedora"
+	DistroSUSE    Distribution = "suse"
+	DistroArch    Distribution = "arch"
+	DistroUnknown Distribution = "unknown"
+)
+
+type Executor interface {
+	RunCloudInit() error
+	Reboot() error
+	UpdateSystem() error
+	DetectDistribution() Distribution
+}
+
+type SystemExecutor struct {
+	privilegeCmd string
+}
+
+func NewSystemExecutor() Executor {
+	return &SystemExecutor{
+		privilegeCmd: detectPrivilegeCommand(),
+	}
+}
+
+func detectPrivilegeCommand() string {
+	commands := []string{"doas", "sudo", "su"}
+
+	for _, cmd := range commands {
+		if _, err := exec.LookPath(cmd); err == nil {
+			return cmd
+		}
+	}
+
+	return ""
+}
+
+func (e *SystemExecutor) runPrivileged(args ...string) error {
+	if e.privilegeCmd == "" {
+		cmd := exec.Command(args[0], args[1:]...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("command failed: %v, output: %s", err, string(output))
+		}
+		return nil
+	}
+
+	var cmd *exec.Cmd
+	switch e.privilegeCmd {
+	case "doas", "sudo":
+		fullArgs := append([]string{}, args...)
+		cmd = exec.Command(e.privilegeCmd, fullArgs...)
+	case "su":
+		shellCmd := strings.Join(args, " ")
+		cmd = exec.Command("su", "-c", shellCmd)
+	default:
+		cmd = exec.Command(args[0], args[1:]...)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %v, output: %s", err, string(output))
+	}
+	return nil
+}
+
+func (e *SystemExecutor) RunCloudInit() error {
+	return e.runPrivileged("cloud-init", "init")
+}
+
+func (e *SystemExecutor) Reboot() error {
+	return e.runPrivileged("reboot")
+}
+
+func (e *SystemExecutor) UpdateSystem() error {
+	distro := e.DetectDistribution()
+
+	switch distro {
+	case DistroAlpine:
+		if err := e.runPrivileged("apk", "update"); err != nil {
+			return err
+		}
+		return e.runPrivileged("apk", "upgrade")
+
+	case DistroDebian, DistroUbuntu:
+		if err := e.runPrivileged("apt-get", "update"); err != nil {
+			return err
+		}
+		return e.runPrivileged("apt-get", "upgrade", "-y")
+
+	case DistroRHEL, DistroCentOS, DistroFedora:
+		if _, err := exec.LookPath("dnf"); err == nil {
+			return e.runPrivileged("dnf", "update", "-y")
+		}
+		return e.runPrivileged("yum", "update", "-y")
+
+	case DistroSUSE:
+		if err := e.runPrivileged("zypper", "refresh"); err != nil {
+			return err
+		}
+		return e.runPrivileged("zypper", "update", "-y")
+
+	case DistroArch:
+		return e.runPrivileged("pacman", "-Syu", "--noconfirm")
+
+	default:
+		return fmt.Errorf("unsupported distribution: %s", distro)
+	}
+}
+
+func (e *SystemExecutor) DetectDistribution() Distribution {
+	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+		return DistroAlpine
+	}
+
+	if _, err := os.Stat("/etc/os-release"); err == nil {
+		content, _ := os.ReadFile("/etc/os-release")
+		osRelease := strings.ToLower(string(content))
+
+		if strings.Contains(osRelease, "alpine") {
+			return DistroAlpine
+		} else if strings.Contains(osRelease, "ubuntu") {
+			return DistroUbuntu
+		} else if strings.Contains(osRelease, "debian") {
+			return DistroDebian
+		} else if strings.Contains(osRelease, "rhel") || strings.Contains(osRelease, "red hat") {
+			return DistroRHEL
+		} else if strings.Contains(osRelease, "centos") {
+			return DistroCentOS
+		} else if strings.Contains(osRelease, "fedora") {
+			return DistroFedora
+		} else if strings.Contains(osRelease, "suse") || strings.Contains(osRelease, "opensuse") {
+			return DistroSUSE
+		} else if strings.Contains(osRelease, "arch") {
+			return DistroArch
+		}
+	}
+
+	if _, err := os.Stat("/etc/debian_version"); err == nil {
+		return DistroDebian
+	}
+
+	if _, err := os.Stat("/etc/redhat-release"); err == nil {
+		return DistroRHEL
+	}
+
+	return DistroUnknown
+}
