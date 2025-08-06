@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "security",
+    srcs = [
+        "auth.go",
+        "jobid.go",
+    ],
+    importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/security",
+    visibility = ["//src:__subpackages__"],
+)
+
+go_test(
+    size = "small",
+    name = "security_test",
+    srcs = ["auth_test.go"],
+    embed = [":security"],
+)

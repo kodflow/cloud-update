@@ -1,0 +1,139 @@
+# golangci-lint configuration file
+# version: v1
+
+run:
+  build-tags:
+    - integration
+  tests: true
+
+linters:
+  enable:
+    - bodyclose
+    - dogsled
+    - errcheck
+    - errorlint
+    - gocritic
+    - gocyclo
+    - godot
+    - gosec
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - prealloc
+    - revive
+    - sqlclosecheck
+    - staticcheck
+    - wrapcheck
+
+linters-settings:
+  dogsled:
+    max-blank-identifiers: 2
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  gocritic:
+    enabled-checks:
+      - nilValReturn
+      - rangeExprCopy
+      - rangeValCopy
+      - boolExprSimplify
+      - equalFold
+      - indexAlloc
+      - nestingReduce
+      - ptrToRefParam
+      - typeAssertChain
+      - typeUnparen
+      - unnecessaryBlock
+  gocyclo:
+    min-complexity: 20
+  gosec:
+    excludes:
+      - G104
+      - G307
+    severity: medium
+    confidence: medium
+  govet:
+    disable:
+      - shadow
+      - fieldalignment
+    enable-all: true
+  lll:
+    line-length: 120
+    tab-width: 1
+  misspell:
+    locale: US
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: true
+  revive:
+    severity: error
+    rules:
+      - name: context-keys-type
+      - name: time-naming
+      - name: var-declaration
+      - name: unexported-return
+      - name: errorf
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: indent-error-flow
+      - name: argument-limit
+        arguments:
+          - 5
+      - name: function-result-limit
+        arguments:
+          - 3
+      - name: cognitive-complexity
+        arguments:
+          - 30
+      - name: cyclomatic
+        arguments:
+          - 20
+      - name: line-length-limit
+        arguments:
+          - 120
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - linters:
+        - dupl
+        - errcheck
+        - gocyclo
+        - gosec
+        - lll
+      path: _test\.go
+    - linters:
+        - deadcode
+      path: BUILD\.bazel
+    - linters:
+        - gochecknoglobals
+      path: main\.go
+  exclude-dirs:
+    - bazel-bin
+    - bazel-out
+    - bazel-testlogs
+    - bazel-cloud-update
+    - vendor
+    - .git
+    - third_party
+    - builtin
+    - examples
+  exclude-files:
+    - .*\.pb\.go$
+    - .*\.gen\.go$
+    - mock_.*\.go$

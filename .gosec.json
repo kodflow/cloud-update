@@ -1,0 +1,67 @@
+{
+  "global": {
+    "audit": "enabled",
+    "nosec": "enabled",
+    "fmt": "json",
+    "confidence": "high",
+    "severity": "medium"
+  },
+  "rules": {
+    "G101": "enabled",
+    "G102": "enabled",
+    "G103": "enabled",
+    "G104": "enabled",
+    "G106": "enabled",
+    "G107": "enabled",
+    "G201": "enabled",
+    "G202": "enabled",
+    "G203": "enabled",
+    "G204": "enabled",
+    "G301": "enabled",
+    "G302": "enabled",
+    "G303": "enabled",
+    "G304": "enabled",
+    "G305": "enabled",
+    "G306": "enabled",
+    "G307": "enabled",
+    "G401": "enabled",
+    "G402": "enabled",
+    "G403": "enabled",
+    "G404": "enabled",
+    "G501": "enabled",
+    "G502": "enabled",
+    "G503": "enabled",
+    "G504": "enabled",
+    "G505": "enabled",
+    "G601": "enabled"
+  },
+  "exclude": [
+    "bazel-*/**", 
+    "vendor/**", 
+    "*_test.go"
+  ],
+  "exclude-rules": [
+    {
+      "rule": "G204",
+      "paths": [
+        "src/internal/infrastructure/system/executor.go",
+        "src/internal/infrastructure/system/executor_secure.go"
+      ]
+    },
+    {
+      "rule": "G304",
+      "paths": ["src/internal/setup/setup.go"]
+    },
+    {
+      "rule": "G306", 
+      "paths": ["src/internal/setup/setup.go"]
+    },
+    {
+      "rule": "G104",
+      "paths": [
+        "src/internal/infrastructure/logger/logger.go",
+        "src/internal/application/handler/webhook_handler_pool.go"
+      ]
+    }
+  ]
+}

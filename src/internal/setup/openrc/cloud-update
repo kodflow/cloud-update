@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+
+name="Cloud Update Service"
+description="Cloud configuration update service with webhook support"
+command="/opt/cloud-update/cloud-update"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+start_stop_daemon_args="--env CLOUD_UPDATE_CONFIG_PATH=/etc/cloud-update/config.env"
+output_log="/var/log/cloud-update.log"
+error_log="/var/log/cloud-update.error.log"
+
+depend() {
+    need net
+    after firewall
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run
+    checkpath --directory --owner root:root --mode 0755 /var/log
+    checkpath --directory --owner root:root --mode 0700 /etc/cloud-update
+}
+
+stop() {
+    ebegin "Stopping ${name}"
+    start-stop-daemon --stop --pidfile "${pidfile}"
+    eend $?
+}

@@ -1,0 +1,33 @@
+FROM debian:12
+
+# Install dependencies (Debian can use either systemd or sysvinit)
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the pre-built binary and install script
+WORKDIR /app
+# First try to copy from test directory, fallback to dist
+COPY src/test/e2e/cloud-update /app/cloud-update
+COPY scripts/install.sh /app/install.sh
+
+# Make scripts executable
+RUN chmod 755 /app/cloud-update /app/install.sh
+
+# Set test environment variables
+ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e-testing-purposes-only
+ENV CLOUD_UPDATE_PORT=9999
+ENV CLOUD_UPDATE_LOG_LEVEL=debug
+
+# Run installation with sh (POSIX-compliant)
+RUN sh /app/install.sh
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Start the service directly
+CMD ["/opt/cloud-update/cloud-update"]

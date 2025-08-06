@@ -1,0 +1,11 @@
+filegroup(
+    name = "install.sh",
+    srcs = ["install.sh"],
+    visibility = ["//visibility:public"],
+)
+
+sh_binary(
+    name = "e2e_test.sh",
+    srcs = ["e2e_test.sh"],
+    visibility = ["//visibility:public"],
+)

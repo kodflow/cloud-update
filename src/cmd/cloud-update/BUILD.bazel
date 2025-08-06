@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "cloud-update_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/kodflow/cloud-update/src/cmd/cloud-update",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//src/internal/application/handler",
+        "//src/internal/domain/service",
+        "//src/internal/infrastructure/config",
+        "//src/internal/infrastructure/console",
+        "//src/internal/infrastructure/logger",
+        "//src/internal/infrastructure/ratelimit",
+        "//src/internal/infrastructure/security",
+        "//src/internal/infrastructure/system",
+        "//src/internal/infrastructure/worker",
+        "//src/internal/setup",
+        "//src/internal/version",
+    ],
+)
+
+go_binary(
+    name = "cloud-update",
+    embed = [":cloud-update_lib"],
+    visibility = ["//visibility:public"],
+)

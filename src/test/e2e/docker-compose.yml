@@ -1,0 +1,52 @@
+# Common configuration using YAML anchors
+x-common-environment: &common-env
+  CLOUD_UPDATE_SECRET: ${E2E_SECRET}
+  CLOUD_UPDATE_PORT: 9999
+  CLOUD_UPDATE_LOG_LEVEL: ${CLOUD_UPDATE_LOG_LEVEL:-debug}
+
+x-common-config: &common-config
+  networks:
+    - cloud-update-test
+  build:
+    context: ../../..
+
+services:
+  # Alpine with native OpenRC
+  alpine:
+    <<: *common-config
+    build:
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.alpine
+    container_name: cloud-update-alpine
+    ports:
+      - '${E2E_PORT_ALPINE:-9991}:9999'
+    environment:
+      <<: *common-env
+
+  # Ubuntu with native systemd
+  ubuntu:
+    <<: *common-config
+    build:
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.ubuntu
+    container_name: cloud-update-ubuntu
+    ports:
+      - '${E2E_PORT_UBUNTU:-9992}:9999'
+    environment:
+      <<: *common-env
+
+  # Debian (will detect available init system)
+  debian:
+    <<: *common-config
+    build:
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.debian
+    container_name: cloud-update-debian
+    ports:
+      - '${E2E_PORT_DEBIAN:-9993}:9999'
+    environment:
+      <<: *common-env
+
+networks:
+  cloud-update-test:
+    driver: bridge

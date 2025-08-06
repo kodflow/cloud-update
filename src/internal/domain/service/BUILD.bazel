@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "service",
+    srcs = ["action_service.go"],
+    importpath = "github.com/kodflow/cloud-update/src/internal/domain/service",
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        "//src/internal/domain/entity",
+        "//src/internal/infrastructure/system",
+    ],
+)
+
+go_test(
+    size = "small",
+    name = "service_test",
+    srcs = ["action_service_test.go"],
+    embed = [":service"],
+    deps = [
+        "//src/internal/domain/entity",
+        "//src/internal/infrastructure/system",
+    ],
+)

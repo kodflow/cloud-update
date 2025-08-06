@@ -1,0 +1,512 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}  # Cancel only for PRs, not main
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  # Analyze job - runs in parallel with test
+  analyze:
+    name: Analyze + Versioning
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.next }}
+      current: ${{ steps.semver.outputs.current }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: What is next version?
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+          skipInvalidTags: true
+          noVersionBumpBehavior: patch
+          noNewCommitBehavior: current
+          fallbackTag: v0.0.0
+          patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            go.mod
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m ./src/...
+          skip-cache: true
+
+  # Unit tests job - runs in parallel with analyze
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+        with:
+          bazelisk-version: '1.x'
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          restore-keys: |
+            bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-test-v3-${{ runner.os }}-
+
+      - name: Run unit tests
+        run: make test-unit
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: bazel-testlogs/**/*.xml
+          retention-days: 7
+
+  # Build job - waits for BOTH analyze and test to complete
+  build:
+    runs-on: ubuntu-latest
+    needs: [analyze, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+        with:
+          bazelisk-version: '1.x'
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          restore-keys: |
+            bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-build-v3-${{ runner.os }}-
+
+      - name: Build all binaries with Bazel
+        run: |
+          mkdir -p .dist
+          
+          # Use the version from analyze job
+          VERSION="${{ needs.analyze.outputs.version }}"
+          echo "Building with version: ${VERSION}"
+          
+          # Build for multiple platforms
+          for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            OS=$(echo $platform | cut -d/ -f1)
+            ARCH=$(echo $platform | cut -d/ -f2)
+            echo "Building for $OS/$ARCH..."
+            
+            bazel build --config=ci \
+              --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
+              //src/cmd/cloud-update:cloud-update \
+              --workspace_status_command="echo BUILD_VERSION ${VERSION}"
+            
+            # Copy the binary with the appropriate extension
+            OUTPUT_NAME="cloud-update-${OS}-${ARCH}"
+            if [ "$OS" = "windows" ]; then
+              if cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null || \
+                 cp bazel-bin/src/cmd/cloud-update/windows_amd64_pure_stripped/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null; then
+                echo "✓ Built ${OUTPUT_NAME}.exe"
+              else
+                echo "✗ Failed to build Windows binary for ${ARCH}"
+                exit 1
+              fi
+            else
+              if cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null || \
+                 cp bazel-bin/src/cmd/cloud-update/${OS}_${ARCH}_pure_stripped/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null; then
+                chmod +x .dist/${OUTPUT_NAME}
+                echo "✓ Built ${OUTPUT_NAME}"
+              else
+                echo "✗ Failed to build ${OS}/${ARCH} binary"
+                exit 1
+              fi
+            fi
+          done
+          
+          # List generated binaries
+          echo "Generated binaries:"
+          ls -la .dist/
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-update-binaries
+          path: .dist/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  # E2E tests - runs for both PR and main
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        init_system:
+          - { name: openrc, distro: alpine }
+          - { name: systemd, distro: ubuntu }
+          - { name: sysvinit, distro: debian }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: cloud-update-binaries
+          path: .dist/
+
+      - name: Prepare binary for container
+        run: |
+          # The E2E test script expects the binary in a specific location
+          mkdir -p dist/cloud-update_linux_amd64_v1
+          cp .dist/cloud-update-linux-amd64 dist/cloud-update_linux_amd64_v1/cloud-update
+          chmod +x dist/cloud-update_linux_amd64_v1/cloud-update
+
+          # Also copy to the location expected by Dockerfile
+          mkdir -p src/test/e2e
+          cp .dist/cloud-update-linux-amd64 src/test/e2e/cloud-update
+          chmod +x src/test/e2e/cloud-update
+
+      - name: Run E2E test for ${{ matrix.init_system.name }}
+        run: |
+          if [ -f .env.test ]; then
+            set -o allexport
+            source .env.test
+            set +o allexport
+          fi
+          # Export required environment variables
+          export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_LOG_LEVEL="debug"
+
+          chmod +x src/test/e2e/test_distro.sh
+          ./src/test/e2e/test_distro.sh ${{ matrix.init_system.distro }}
+
+      - name: Clean up containers
+        if: always()
+        run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
+
+  # Release job - creates prerelease for PR or final release for main
+  release:
+    name: Create Release
+    needs: [analyze, build, e2e]
+    runs-on: ubuntu-latest
+    # Prevent concurrent releases on main branch to avoid version conflicts
+    # Only apply concurrency control on main branch
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false  # Wait for previous release to complete instead of canceling
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: cloud-update-binaries
+          path: .dist/
+
+      - name: Create archives
+        run: |
+          cd .dist
+          
+          # Create archives
+          for file in cloud-update-*; do
+            if [[ "$file" == *.exe ]]; then
+              # For Windows, create a zip file
+              zip "${file%.exe}.zip" "$file"
+              echo "Created ${file%.exe}.zip"
+            else
+              # For Unix systems, create tar.gz
+              tar -czf "${file}.tar.gz" "$file"
+              echo "Created ${file}.tar.gz"
+            fi
+          done
+          
+          # Generate SHA256 checksums
+          echo "Generating SHA256 checksums..."
+          sha256sum *.tar.gz *.zip 2>/dev/null > checksums.sha256 || true
+          
+          # Display checksums for verification
+          echo "SHA256 Checksums:"
+          cat checksums.sha256
+          
+          cd ..
+          
+          # List archives
+          echo "Release archives:"
+          ls -la .dist/*.{tar.gz,zip} 2>/dev/null || true
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # PR - Create prerelease notes
+            cat << EOF > release_notes.md
+          ## Prerelease for PR #${{ github.event.pull_request.number }}
+          
+          This is a prerelease build for testing purposes.
+          
+          ### Pull Request
+          - Title: ${{ github.event.pull_request.title }}
+          - Branch: ${{ github.head_ref }}
+          - Commit: ${{ github.sha }}
+          
+          ### Test Status
+          - Unit Tests: ✅ Passed
+          - Build: ✅ Completed  
+          - E2E Tests: ✅ Passed
+          
+          ### Downloads
+          Available binaries for all platforms with SHA256 checksums.
+          
+          **Note**: This is a prerelease and should not be used in production.
+          EOF
+          else
+            # Main branch - Create final release notes
+            CURRENT_TAG="${{ needs.analyze.outputs.version }}"
+            PREVIOUS_TAG="${{ needs.analyze.outputs.current }}"
+            
+            # Generate changelog between tags
+            if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+              CHANGELOG="Initial release"
+            else
+              # Get commit messages since last tag
+              CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "^- Merge" || echo "")
+              
+              # Categorize changes
+              FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature):" | sed 's/^- feat:/- /' | sed 's/^- feature:/- /' || echo "")
+              FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix):" | sed 's/^- fix:/- /' | sed 's/^- bugfix:/- /' || echo "")
+              IMPROVEMENTS=$(echo "$CHANGELOG" | grep -E "^- (perf|improve|enhancement):" | sed 's/^- [^:]*:/- /' || echo "")
+              OTHER=$(echo "$CHANGELOG" | grep -vE "^- (feat|feature|fix|bugfix|perf|improve|enhancement):" || echo "")
+            fi
+            
+            # Format release notes
+            cat << EOF > release_notes.md
+          ## Release ${CURRENT_TAG}
+          
+          ${FEATURES:+### 🚀 Features
+          $FEATURES
+          }
+          ${FIXES:+### 🐛 Bug Fixes
+          $FIXES
+          }
+          ${IMPROVEMENTS:+### ⚡ Performance & Improvements
+          $IMPROVEMENTS
+          }
+          ${OTHER:+### 🔧 Other Changes
+          $OTHER
+          }
+          
+          **Full Changelog**: ${PREVIOUS_TAG:+https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}}
+          EOF
+          fi
+
+      - name: Create or Update Release
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # PR - Create/update prerelease
+            RELEASE_TAG="${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}"
+            
+            # Check if release already exists
+            if gh release view "${RELEASE_TAG}" &>/dev/null; then
+              echo "📝 Updating existing prerelease: ${RELEASE_TAG}"
+              
+              # Delete old assets
+              gh release delete-asset "${RELEASE_TAG}" --pattern "*" -y 2>/dev/null || true
+              
+              # Update the release
+              gh release edit "${RELEASE_TAG}" \
+                --title "Prerelease ${RELEASE_TAG}" \
+                --notes-file release_notes.md \
+                --draft \
+                --prerelease
+              
+              # Upload new assets
+              gh release upload "${RELEASE_TAG}" \
+                .dist/*.tar.gz \
+                .dist/*.zip \
+                .dist/checksums.sha256 \
+                --clobber
+            else
+              echo "🆕 Creating new prerelease: ${RELEASE_TAG}"
+              
+              # Create new prerelease
+              gh release create "${RELEASE_TAG}" \
+                --title "Prerelease ${RELEASE_TAG}" \
+                --notes-file release_notes.md \
+                --draft \
+                --prerelease \
+                .dist/*.tar.gz \
+                .dist/*.zip \
+                .dist/checksums.sha256
+            fi
+          else
+            # Main branch - Create final release
+            VERSION="${{ needs.analyze.outputs.version }}"
+            CURRENT="${{ needs.analyze.outputs.current }}"
+            
+            echo "Current version: $CURRENT"
+            echo "Next version: $VERSION"
+            
+            # CRITICAL: Fetch latest tags to ensure we have the most recent versions
+            # This is essential for concurrent merges
+            echo "Fetching latest tags..."
+            git fetch --tags --force
+            
+            # Get the actual latest tag from git (not from GitHub releases)
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Latest tag from git: $LATEST_TAG"
+            
+            # Also check latest release to be sure
+            LATEST_RELEASE=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases | grep -E "^Release" | awk '{print $4}' || echo "v0.0.0")
+            echo "Latest release in GitHub: $LATEST_RELEASE"
+            
+            # Use the highest version between tag and release
+            ACTUAL_LATEST="$LATEST_TAG"
+            if [ "$LATEST_RELEASE" != "v0.0.0" ]; then
+              # Compare versions and use the highest
+              LATEST_TAG_NUM=$(echo "$LATEST_TAG" | tr -d 'v' | tr '.' ' ')
+              LATEST_REL_NUM=$(echo "$LATEST_RELEASE" | tr -d 'v' | tr '.' ' ')
+              if [ "$(echo "$LATEST_REL_NUM" | awk '{print $1*10000 + $2*100 + $3}')" -gt "$(echo "$LATEST_TAG_NUM" | awk '{print $1*10000 + $2*100 + $3}')" ]; then
+                ACTUAL_LATEST="$LATEST_RELEASE"
+              fi
+            fi
+            echo "Using as base version: $ACTUAL_LATEST"
+            
+            # If the actual latest is newer than what semver calculated, recalculate
+            if [ "$ACTUAL_LATEST" != "$CURRENT" ] && [ "$ACTUAL_LATEST" != "v0.0.0" ]; then
+              echo "Warning: Actual latest ($ACTUAL_LATEST) differs from semver current ($CURRENT)"
+              echo "Recalculating version based on actual latest..."
+              CURRENT="$ACTUAL_LATEST"
+              
+              # Determine version bump based on commit message
+              COMMIT_MSG=$(git log -1 --pretty=%B)
+              if echo "$COMMIT_MSG" | grep -qE "^(feat|feature):"; then
+                # Minor version bump
+                VERSION=$(echo "$ACTUAL_LATEST" | awk -F. '{gsub("v","",$1); print "v"$1"."$2+1".0"}')
+              elif echo "$COMMIT_MSG" | grep -qE "BREAKING CHANGE|^[^:]+!:"; then
+                # Major version bump
+                VERSION=$(echo "$ACTUAL_LATEST" | awk -F. '{gsub("v","",$1); print "v"$1+1".0.0"}')
+              else
+                # Patch version bump (default)
+                VERSION=$(echo "$ACTUAL_LATEST" | awk -F. '{gsub("v","",$1); print "v"$1"."$2"."$3+1}')
+              fi
+              echo "Recalculated version: $VERSION"
+            fi
+            
+            # Check if we need a new release
+            if [ "$VERSION" != "$CURRENT" ] || [ "$CURRENT" == "v0.0.0" ]; then
+              # Clean up prereleases from all merged PRs
+              echo "Cleaning up prereleases from merged PRs..."
+              
+              # Get list of all merged PR numbers
+              MERGED_PRS=$(gh pr list --state merged --limit 100 --json number -q '.[].number')
+              
+              # Get all prerelease tags and check if their PR is merged
+              for tag in $(gh release list --limit 100 | grep -E "pr[0-9]+" | awk '{print $(NF-1)}' | grep -E "v[0-9]+\.[0-9]+\.[0-9]+\-pr[0-9]+"); do
+                # Extract PR number from tag
+                pr_num=$(echo "$tag" | grep -oE "pr[0-9]+" | tr -d 'pr')
+                
+                # Check if this PR is merged
+                if echo "$MERGED_PRS" | grep -q "^${pr_num}$"; then
+                  echo "Deleting prerelease $tag (PR #$pr_num is merged)"
+                  gh release delete "$tag" -y || true
+                  git push --delete origin "$tag" 2>/dev/null || true
+                else
+                  echo "Keeping prerelease $tag (PR #$pr_num is still open)"
+                fi
+              done
+              
+              # Create tag if needed
+              if ! git rev-parse "$VERSION" >/dev/null 2>&1; then
+                echo "Creating new tag: $VERSION"
+                git config user.name "github-actions"
+                git config user.email "github-actions@github.com"
+                git tag -a "$VERSION" -m "Release $VERSION"
+                git push origin "$VERSION"
+              fi
+              
+              # Final check before creating release to avoid race conditions
+              # Re-check if the release was created by another concurrent job
+              if gh release view "$VERSION" &>/dev/null; then
+                echo "⚠️ Release $VERSION already exists (likely created by concurrent job)"
+                echo "📝 Updating existing release with our artifacts..."
+                # Delete old assets
+                gh release delete-asset "$VERSION" --pattern "*" -y 2>/dev/null || true
+                # Update release
+                gh release edit "$VERSION" \
+                  --title "Release $VERSION" \
+                  --notes-file release_notes.md \
+                  --latest
+                # Upload new assets
+                gh release upload "$VERSION" \
+                  .dist/*.tar.gz \
+                  .dist/*.zip \
+                  .dist/checksums.sha256 \
+                  --clobber
+              else
+                echo "🚀 Creating new release: $VERSION"
+                # Use --verify-tag=false to handle case where tag exists but release doesn't
+                gh release create "$VERSION" \
+                  --title "Release $VERSION" \
+                  --notes-file release_notes.md \
+                  --latest \
+                  --verify-tag=false \
+                  .dist/*.tar.gz \
+                  .dist/*.zip \
+                  .dist/checksums.sha256 || {
+                  # If creation fails (e.g., race condition), try updating instead
+                  echo "⚠️ Release creation failed, attempting update..."
+                  gh release edit "$VERSION" \
+                    --title "Release $VERSION" \
+                    --notes-file release_notes.md \
+                    --latest
+                  gh release upload "$VERSION" \
+                    .dist/*.tar.gz \
+                    .dist/*.zip \
+                    .dist/checksums.sha256 \
+                    --clobber
+                }
+              fi
+            else
+              echo "No new version to release"
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

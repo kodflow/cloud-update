@@ -1,0 +1,81 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# Binary name (but not in subdirectories)
+/cloud-update
+/build/cloud-update
+/dist/cloud-update*
+/src/test/e2e/cloud-update
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Build directories
+build/
+dist/
+release/
+
+# IDE specific files
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.iml
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files
+.env
+.env.local
+*.env
+!config.example.env
+!.env.test
+
+# Config files with secrets
+/etc/cloud-update/config.env
+config.env
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Build artifacts
+dist/
+
+# Bazel
+bazel-*
+.bazelrc.user
+MODULE.bazel.lock
+
+# Node modules (for semantic-release)
+node_modules/
+package-lock.json
+package.json
+
+# Release files
+/VERSION
+CHANGELOG.md
+cloud-update

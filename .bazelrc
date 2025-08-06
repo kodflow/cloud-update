@@ -1,0 +1,33 @@
+# Bazel configuration for cloud-update
+
+# Enable WORKSPACE mode for Bazel 8 compatibility
+common --enable_workspace
+
+# Build options
+build --stamp
+build --workspace_status_command="echo BUILD_USER $USER"
+build --workspace_status_command="echo BUILD_HOST $(hostname)"
+
+# Test options
+test --test_output=errors
+test --test_verbose_timeout_warnings
+
+# CI specific options
+build:ci --noshow_progress
+build:ci --noshow_loading_progress
+build:ci --verbose_failures
+build:ci --announce_rc
+build:ci --disk_cache=~/.cache/bazel-disk
+
+test:ci --test_output=errors
+test:ci --test_verbose_timeout_warnings
+
+# Cache options
+build --disk_cache=~/.cache/bazel-disk
+build --repository_cache=~/.cache/bazel-repo
+
+# Resource options
+build --jobs=4
+
+# Go specific
+# Race detection is handled by go test flags directly

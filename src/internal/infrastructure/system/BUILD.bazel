@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "system",
+    srcs = [
+        "executor.go",
+        "executor_secure.go",
+    ],
+    importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/system",
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        "//src/internal/infrastructure/logger",
+    ],
+)
+
+go_test(
+    size = "small",
+    name = "system_test",
+    srcs = ["executor_test.go"],
+    embed = [":system"],
+)

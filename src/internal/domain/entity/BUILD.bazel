@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "entity",
+    srcs = [
+        "action.go",
+        "job.go",
+    ],
+    importpath = "github.com/kodflow/cloud-update/src/internal/domain/entity",
+    visibility = ["//src:__subpackages__"],
+)
+
+go_test(
+    size = "small",
+    name = "entity_test",
+    srcs = ["action_test.go"],
+    embed = [":entity"],
+)

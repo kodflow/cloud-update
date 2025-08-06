@@ -1,0 +1,22 @@
+[Unit]
+Description=Cloud Update Webhook Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cloud-update
+ExecStart=/opt/cloud-update/cloud-update
+Restart=always
+RestartSec=10
+EnvironmentFile=/etc/cloud-update/config.env
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log
+
+[Install]
+WantedBy=multi-user.target
