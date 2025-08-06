@@ -5,7 +5,7 @@ project_name: cloud-update
 before:
   hooks:
     - go mod tidy
-    - go test ./src/...
+    # Tests are run by make check, excluding E2E tests for local builds
 
 builds:
   - id: cloud-update
@@ -236,62 +236,63 @@ signs:
     artifacts: checksum
     output: true
 
-docker:
-  - image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
-    
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    
-    extra_files:
-      - init
-    
-    dockerfile: |
-      FROM alpine:3.19
-      RUN apk add --no-cache ca-certificates tzdata
-      COPY cloud-update /usr/local/bin/
-      EXPOSE 9999
-      ENTRYPOINT ["cloud-update"]
-    
-    goarch: amd64
-  
-  - image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"
-    
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    
-    extra_files:
-      - init
-    
-    dockerfile: |
-      FROM alpine:3.19
-      RUN apk add --no-cache ca-certificates tzdata
-      COPY cloud-update /usr/local/bin/
-      EXPOSE 9999
-      ENTRYPOINT ["cloud-update"]
-    
-    goarch: arm64
+# Docker section disabled for local builds
+# docker:
+#   - image_templates:
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
+#     
+#     use: buildx
+#     build_flag_templates:
+#       - "--platform=linux/amd64"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
+#     
+#     extra_files:
+#       - init
+#     
+#     dockerfile: |
+#       FROM alpine:3.19
+#       RUN apk add --no-cache ca-certificates tzdata
+#       COPY cloud-update /usr/local/bin/
+#       EXPOSE 9999
+#       ENTRYPOINT ["cloud-update"]
+#     
+#     goarch: amd64
+#   
+#   - image_templates:
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"
+#     
+#     use: buildx
+#     build_flag_templates:
+#       - "--platform=linux/arm64"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
+#     
+#     extra_files:
+#       - init
+#     
+#     dockerfile: |
+#       FROM alpine:3.19
+#       RUN apk add --no-cache ca-certificates tzdata
+#       COPY cloud-update /usr/local/bin/
+#       EXPOSE 9999
+#       ENTRYPOINT ["cloud-update"]
+#     
+#     goarch: arm64
 
-docker_manifests:
-  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}"
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
-  
-  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest"
-    image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
-      - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"
+# docker_manifests:
+#   - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}"
+#     image_templates:
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-amd64"
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:{{ .Version }}-arm64"
+#   
+#   - name_template: "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest"
+#     image_templates:
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-amd64"
+#       - "{{ .Env.REGISTRY }}/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cloud-update:latest-arm64"

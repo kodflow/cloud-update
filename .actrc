@@ -1,0 +1,14 @@
+# Act configuration for cloud-update
+# Use medium sized images by default (includes more tools)
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+
+# Default workflow
+--workflows .github/workflows/ci.yml
+
+# Reuse containers for faster execution
+--reuse
+
+# Use Docker BuildKit
+--env DOCKER_BUILDKIT=1

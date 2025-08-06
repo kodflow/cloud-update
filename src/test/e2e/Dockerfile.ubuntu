@@ -3,11 +3,8 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies
+# Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
-    golang-go \
-    git \
-    make \
     curl \
     openssl \
     systemd \
@@ -15,17 +12,14 @@ RUN apt-get update && apt-get install -y \
     cloud-init \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy source code
+# Copy the pre-built binary from goreleaser
 WORKDIR /app
-COPY . .
-
-# Build the application
-RUN go build -o cloud-update src/cmd/cloud-update/main.go
+COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
 
 # Install the service
 RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
-    cp cloud-update /opt/cloud-update/ && \
-    cp src/init/systemd/cloud-update.service /etc/systemd/system/
+    cp /app/cloud-update /opt/cloud-update/ && \
+    chmod 755 /opt/cloud-update/cloud-update
 
 # Create config with test secret
 RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \

@@ -4,8 +4,10 @@
 *.dll
 *.so
 *.dylib
-cloud-update
-!cmd/cloud-update/
+# Binary name (but not in subdirectories)
+/cloud-update
+/build/cloud-update
+/dist/cloud-update
 
 # Test binary, built with `go test -c`
 *.test

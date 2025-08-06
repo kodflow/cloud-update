@@ -1,22 +1,16 @@
 FROM alpine:3.19
 
-# Install dependencies
+# Install runtime dependencies only
 RUN apk add --no-cache \
-    go \
-    git \
-    make \
     curl \
     openssl \
     bash \
     cloud-init \
     openrc
 
-# Copy source code
+# Copy the pre-built binary from goreleaser
 WORKDIR /app
-COPY . .
-
-# Build the application
-RUN go build -o cloud-update src/cmd/cloud-update/main.go
+COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
 
 # Setup OpenRC
 RUN mkdir -p /run/openrc && \
@@ -25,9 +19,8 @@ RUN mkdir -p /run/openrc && \
 
 # Install the service
 RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
-    cp cloud-update /opt/cloud-update/ && \
-    cp src/init/openrc/cloud-update /etc/init.d/ && \
-    chmod 755 /etc/init.d/cloud-update
+    cp /app/cloud-update /opt/cloud-update/ && \
+    chmod 755 /opt/cloud-update/cloud-update
 
 # Create config with test secret
 RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \

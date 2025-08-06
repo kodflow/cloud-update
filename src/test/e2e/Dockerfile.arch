@@ -1,25 +1,21 @@
-FROM archlinux:latest
+FROM archlinux/archlinux:latest
 
-# Update system and install dependencies
+# Update system and install runtime dependencies only
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm \
-    go \
-    git \
-    make \
     curl \
     openssl \
     systemd \
     cloud-init
 
-# Copy source code
+# Copy the pre-built binary from goreleaser
 WORKDIR /app
-COPY . .
+COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
 
-# Build the application
-RUN go build -o cloud-update src/cmd/cloud-update/main.go
-
-# Install the service using setup command
-RUN ./cloud-update --setup || true
+# Install the service
+RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
+    cp /app/cloud-update /opt/cloud-update/ && \
+    chmod 755 /opt/cloud-update/cloud-update
 
 # Override config for testing
 RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \

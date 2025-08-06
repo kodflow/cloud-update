@@ -1,0 +1,32 @@
+{
+  "Issues": ["G301", "G302", "G303", "G307", "G401", "G402", "G403", "G404", "G501", "G502", "G503", "G504", "G505", "G601"],
+  "Tests": true,
+  "Excludes": [
+    "src/test/.*",
+    ".*_test.go"
+  ],
+  "Severity": "medium",
+  "Confidence": "high",
+  "NoSecAlternative": "",
+  "TruncateIssues": false,
+  "Rules": {
+    "G114": {
+      "pattern": "ListenAndServe"
+    },
+    "G204": {
+      "excludes": [
+        "src/internal/infrastructure/system/executor.go"
+      ]
+    },
+    "G304": {
+      "excludes": [
+        "src/internal/setup/setup.go"
+      ]
+    },
+    "G306": {
+      "excludes": [
+        "src/internal/setup/setup.go"
+      ]
+    }
+  }
+}

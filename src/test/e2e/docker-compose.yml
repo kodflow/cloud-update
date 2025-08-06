@@ -3,8 +3,8 @@
 services:
   alpine:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.alpine
+      context: ../../.../../..
+      dockerfile: src/test/e2e/Dockerfile.alpine
     container_name: cloud-update-alpine
     ports:
       - "9991:9999"
@@ -23,8 +23,8 @@ services:
 
   ubuntu:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.ubuntu
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.ubuntu
     container_name: cloud-update-ubuntu
     ports:
       - "9992:9999"
@@ -43,8 +43,8 @@ services:
 
   debian:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.debian
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.debian
     container_name: cloud-update-debian
     ports:
       - "9993:9999"
@@ -63,8 +63,8 @@ services:
 
   rockylinux:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.rockylinux
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.rockylinux
     container_name: cloud-update-rockylinux
     ports:
       - "9994:9999"
@@ -83,8 +83,8 @@ services:
 
   fedora:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.fedora
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.fedora
     container_name: cloud-update-fedora
     ports:
       - "9995:9999"
@@ -103,8 +103,8 @@ services:
 
   arch:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.arch
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.arch
     container_name: cloud-update-arch
     ports:
       - "9996:9999"
@@ -123,8 +123,8 @@ services:
 
   opensuse:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.opensuse
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.opensuse
     container_name: cloud-update-opensuse
     ports:
       - "9997:9999"
@@ -143,8 +143,8 @@ services:
 
   test-runner:
     build:
-      context: ../..
-      dockerfile: test/e2e/Dockerfile.test-runner
+      context: ../../..
+      dockerfile: src/test/e2e/Dockerfile.test-runner
     container_name: cloud-update-test-runner
     depends_on:
       alpine:
@@ -176,18 +176,18 @@ services:
         FAILED=0
         
         for DISTRO in alpine ubuntu debian rockylinux fedora arch opensuse; do
-          echo \"=== Testing \$DISTRO ===\" | tee -a /results/e2e-results.txt
-          E2E_BASE_URL=http://\$DISTRO:9999 go test -v ./test/e2e/... 2>&1 | tee -a /results/e2e-results.txt
-          if [ \$? -ne 0 ]; then
-            FAILED=\$((FAILED + 1))
+          echo \"=== Testing \$$DISTRO ===\" | tee -a /results/e2e-results.txt
+          E2E_BASE_URL=http://\$$DISTRO:9999 go test -v ./test/e2e/... 2>&1 | tee -a /results/e2e-results.txt
+          if [ \$$? -ne 0 ]; then
+            FAILED=\$$((FAILED + 1))
           fi
         done
         
-        if [ \$FAILED -eq 0 ]; then
+        if [ \$$FAILED -eq 0 ]; then
           echo 'All E2E tests completed successfully!' | tee -a /results/e2e-results.txt
           exit 0
         else
-          echo \"\$FAILED distributions failed tests\" | tee -a /results/e2e-results.txt
+          echo \"\$$FAILED distributions failed tests\" | tee -a /results/e2e-results.txt
           exit 1
         fi
       "

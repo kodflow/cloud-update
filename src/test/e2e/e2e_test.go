@@ -81,7 +81,7 @@ func TestHealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to call health endpoint: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -147,7 +147,7 @@ func TestWebhookAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to send request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != tt.expectedStatus {
 				body, _ := io.ReadAll(resp.Body)
@@ -169,7 +169,7 @@ func TestWebhookActions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to send webhook: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
 				body, _ := io.ReadAll(resp.Body)
@@ -234,7 +234,7 @@ func TestInvalidWebhookPayload(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to send request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != tt.expectedStatus {
 				body, _ := io.ReadAll(resp.Body)
@@ -260,7 +260,7 @@ func TestConcurrentWebhooks(t *testing.T) {
 				done <- false
 				return
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
 				errors <- fmt.Errorf("request %d: unexpected status %d", id, resp.StatusCode)
@@ -300,7 +300,7 @@ func TestServiceVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to call health endpoint: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)

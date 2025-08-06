@@ -5,9 +5,13 @@ import "time"
 type ActionType string
 
 const (
-	ActionReinit ActionType = "reinit"
-	ActionReboot ActionType = "reboot"
-	ActionUpdate ActionType = "update"
+	ActionReinit        ActionType = "reinit"         // Réinitialiser cloud-init
+	ActionReboot        ActionType = "reboot"         // Redémarrer le serveur
+	ActionUpdate        ActionType = "update"         // Mettre à jour le système
+	ActionShutdown      ActionType = "shutdown"       // Éteindre le serveur
+	ActionExecuteScript ActionType = "execute_script" // Exécuter un script personnalisé
+	ActionUpgrade       ActionType = "upgrade"        // Mise à niveau complète du système
+	ActionRestart       ActionType = "restart"        // Redémarrer des services spécifiques
 )
 
 type WebhookRequest struct {

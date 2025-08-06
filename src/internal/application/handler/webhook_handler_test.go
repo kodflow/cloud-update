@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,15 +17,30 @@ import (
 
 // Mock action service
 type mockActionService struct {
+	mu                  sync.Mutex
 	processActionCalled bool
 	lastRequest         entity.WebhookRequest
 	lastJobID           string
 }
 
 func (m *mockActionService) ProcessAction(req entity.WebhookRequest, jobID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.processActionCalled = true
 	m.lastRequest = req
 	m.lastJobID = jobID
+}
+
+func (m *mockActionService) wasProcessActionCalled() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.processActionCalled
+}
+
+func (m *mockActionService) getLastRequest() entity.WebhookRequest {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lastRequest
 }
 
 // Mock authenticator
@@ -102,7 +118,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 			if tt.expectedStatus == http.StatusOK {
 				// Wait a bit for the goroutine to execute
 				time.Sleep(10 * time.Millisecond)
-				if !mockAction.processActionCalled {
+				if !mockAction.wasProcessActionCalled() {
 					t.Error("ProcessAction was not called for valid request")
 				}
 
@@ -152,14 +168,15 @@ func TestWebhookHandler_ValidRequest(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Verify the action service received correct data
-	if mockAction.lastRequest.Action != reqBody.Action {
+	lastReq := mockAction.getLastRequest()
+	if lastReq.Action != reqBody.Action {
 		t.Errorf("Action mismatch: got %s, want %s",
-			mockAction.lastRequest.Action, reqBody.Action)
+			lastReq.Action, reqBody.Action)
 	}
 
-	if mockAction.lastRequest.Module != reqBody.Module {
+	if lastReq.Module != reqBody.Module {
 		t.Errorf("Module mismatch: got %s, want %s",
-			mockAction.lastRequest.Module, reqBody.Module)
+			lastReq.Module, reqBody.Module)
 	}
 }
 
@@ -222,9 +239,81 @@ func BenchmarkWebhookHandler(b *testing.B) {
 	}
 }
 
-// Helper function to generate HMAC signature for integration tests
-func generateHMACSignature(secret string, body []byte) string {
+// Test de sécurité HMAC pour s'assurer que les actions sont protégées
+func TestWebhookHandler_SecurityValidation(t *testing.T) {
+	mockAction := &mockActionService{}
+	mockAuth := &mockAuthenticator{shouldValidate: false} // Signature invalide
+	handler := NewWebhookHandler(mockAction, mockAuth)
+
+	// Actions sensibles qui doivent être protégées
+	criticalActions := []entity.ActionType{
+		entity.ActionReboot,
+		entity.ActionUpdate,
+		entity.ActionReinit,
+		"shutdown",       // Action personnalisée possible
+		"execute_script", // Action personnalisée possible
+	}
+
+	for _, action := range criticalActions {
+		t.Run("protect_"+string(action), func(t *testing.T) {
+			reqBody := entity.WebhookRequest{
+				Action:    action,
+				Timestamp: time.Now().Unix(),
+			}
+
+			body, _ := json.Marshal(reqBody)
+			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			// Pas de signature ou signature invalide
+
+			rr := httptest.NewRecorder()
+			handler.HandleWebhook(rr, req)
+
+			// Doit être rejeté avec 401 Unauthorized
+			if status := rr.Code; status != http.StatusUnauthorized {
+				t.Errorf("Action %s non protégée! Got status %v, want %v",
+					action, status, http.StatusUnauthorized)
+			}
+
+			// L'action ne doit PAS être exécutée
+			if mockAction.wasProcessActionCalled() {
+				t.Errorf("CRITIQUE: Action %s exécutée sans authentification valide!", action)
+			}
+		})
+	}
+}
+
+// generateTestHMACSignature génère une signature HMAC valide pour les tests d'intégration
+// Cette fonction est gardée comme helper pour les futurs tests
+func generateTestHMACSignature(secret string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// Test d'intégration avec signature valide
+func TestWebhookHandler_IntegrationWithValidSignature(t *testing.T) {
+	mockAction := &mockActionService{}
+	mockAuth := &mockAuthenticator{shouldValidate: true}
+	handler := NewWebhookHandler(mockAction, mockAuth)
+
+	secret := "test-secret"
+	reqBody := entity.WebhookRequest{
+		Action:    entity.ActionReboot,
+		Timestamp: time.Now().Unix(),
+	}
+
+	body, _ := json.Marshal(reqBody)
+	signature := generateTestHMACSignature(secret, body)
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Cloud-Update-Signature", signature)
+
+	rr := httptest.NewRecorder()
+	handler.HandleWebhook(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 }

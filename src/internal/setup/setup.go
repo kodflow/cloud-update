@@ -86,8 +86,8 @@ func (s *ServiceInstaller) createDirectories() error {
 		path string
 		mode os.FileMode
 	}{
-		{InstallDir, 0755},
-		{ConfigDir, 0700},
+		{InstallDir, 0o755},
+		{ConfigDir, 0o700},
 	}
 
 	for _, dir := range dirs {
@@ -112,12 +112,14 @@ func (s *ServiceInstaller) installBinary() error {
 	destPath := filepath.Join(InstallDir, BinaryName)
 
 	// Copy binary
-	input, err := os.ReadFile(execPath)
+	input, err := os.ReadFile(execPath) // #nosec G304 - execPath comes from os.Executable()
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(destPath, input, 0755); err != nil {
+	// Binary needs executable permissions
+	// #nosec G306 -- binary must be executable (755)
+	if err := os.WriteFile(destPath, input, 0o755); err != nil {
 		return err
 	}
 
@@ -143,7 +145,9 @@ func (s *ServiceInstaller) installService() error {
 func (s *ServiceInstaller) installSystemdService() error {
 	servicePath := "/etc/systemd/system/cloud-update.service"
 
-	if err := os.WriteFile(servicePath, []byte(SystemdService), 0644); err != nil {
+	// Systemd service files need 0644 permissions
+	// #nosec G306 -- systemd requires 0644 permissions
+	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil {
 		return err
 	}
 
@@ -159,7 +163,9 @@ func (s *ServiceInstaller) installSystemdService() error {
 func (s *ServiceInstaller) installOpenRCService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
-	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0755); err != nil {
+	// Init scripts need executable permissions
+	// #nosec G306 -- init scripts must be executable (755)
+	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil {
 		return err
 	}
 
@@ -170,13 +176,15 @@ func (s *ServiceInstaller) installOpenRCService() error {
 func (s *ServiceInstaller) installSysVInitService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
-	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0755); err != nil {
+	// Init scripts need executable permissions
+	// #nosec G306 -- init scripts must be executable (755)
+	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil {
 		return err
 	}
 
 	// Update rc.d if available
 	if _, err := exec.LookPath("update-rc.d"); err == nil {
-		exec.Command("update-rc.d", "cloud-update", "defaults").Run()
+		_ = exec.Command("update-rc.d", "cloud-update", "defaults").Run()
 	}
 
 	fmt.Printf("  ✓ Installed SysVInit service to %s\n", servicePath)
@@ -210,7 +218,7 @@ CLOUD_UPDATE_SECRET=%s
 CLOUD_UPDATE_LOG_LEVEL=info
 `, secret)
 
-	if err := os.WriteFile(configPath, []byte(config), 0600); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return err
 	}
 
@@ -297,8 +305,8 @@ func (s *ServiceInstaller) Uninstall() error {
 	// Ask about config
 	fmt.Printf("\n❓ Remove configuration directory %s? (y/N): ", ConfigDir)
 	var response string
-	fmt.Scanln(&response)
-	if strings.ToLower(response) == "y" {
+	_, _ = fmt.Scanln(&response)
+	if strings.EqualFold(response, "y") {
 		if err := os.RemoveAll(ConfigDir); err != nil {
 			fmt.Printf("  ⚠️  Failed to remove %s: %v\n", ConfigDir, err)
 		} else {
@@ -363,7 +371,7 @@ func (s *ServiceInstaller) removeServiceFiles() {
 	switch s.initSystem {
 	case InitSystemd:
 		servicePath = "/etc/systemd/system/cloud-update.service"
-		defer exec.Command("systemctl", "daemon-reload").Run()
+		defer func() { _ = exec.Command("systemctl", "daemon-reload").Run() }()
 	case InitOpenRC, InitSysVInit:
 		servicePath = "/etc/init.d/cloud-update"
 	}

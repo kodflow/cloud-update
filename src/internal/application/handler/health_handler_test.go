@@ -39,7 +39,7 @@ func TestHealthHandler_HandleHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, "/health", nil)
+			req := httptest.NewRequest(tt.method, "/health", http.NoBody)
 			rr := httptest.NewRecorder()
 
 			handler.HandleHealth(rr, req)
@@ -82,7 +82,7 @@ func TestHealthHandler_HandleHealth(t *testing.T) {
 func TestHealthHandler_ResponseFormat(t *testing.T) {
 	handler := NewHealthHandler()
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	handler.HandleHealth(rr, req)
@@ -116,7 +116,7 @@ func TestHealthHandler_ConcurrentRequests(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		go func(id int) {
-			req := httptest.NewRequest(http.MethodGet, "/health", nil)
+			req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 			rr := httptest.NewRecorder()
 
 			handler.HandleHealth(rr, req)
@@ -141,7 +141,7 @@ func BenchmarkHealthHandler(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 		rr := httptest.NewRecorder()
 		handler.HandleHealth(rr, req)
 	}
