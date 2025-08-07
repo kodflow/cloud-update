@@ -78,17 +78,19 @@ jobs:
       # === BUILD PHASE (build once, use everywhere) ===
       - name: Build binary for E2E tests
         run: |
-          bazel build //src/cmd/cloud-update:cloud-update \
+          # Build for Linux since E2E tests run in Linux containers
+          bazel build --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
+            //src/cmd/cloud-update:cloud-update \
             --stamp \
             --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
           
           # Binary is needed by E2E tests
           echo "Binary location: $(ls -la bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update)"
 
-      - name: Test binary
+      - name: Verify binary was built
         run: |
-          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
-          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
+          file bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update
+          ls -lah bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update
 
       # === E2E PHASE (parallel) ===
       - name: Run E2E tests in parallel
