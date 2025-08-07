@@ -1,15 +1,14 @@
 run:
   timeout: 5m
   tests: true
-  skip-dirs:
+  exclude-dirs:
     - bazel-bin
     - bazel-out
     - bazel-testlogs
     - bazel-cloud-update
     - vendor
-  skip-files:
+  exclude-files:
     - ".*\\.pb\\.go$"
-    - ".*_test\\.go$"
 
 linters:
   enable:
@@ -24,7 +23,7 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
+    - mnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -76,18 +75,21 @@ linters-settings:
     min-complexity: 15
   goimports:
     local-prefixes: github.com/kodflow/cloud-update
-  gomnd:
-    settings:
-      mnd:
-        checks: argument,case,condition,operation,return,assign
+  mnd:
+    checks:
+      - argument
+      - case
+      - condition
+      - operation
+      - return
+      - assign
   govet:
-    check-shadowing: true
+    shadow: true
   lll:
     line-length: 140
   misspell:
     locale: US
   nolintlint:
-    allow-leading-space: true
     allow-unused: false
     require-explanation: false
     require-specific: false
@@ -96,7 +98,7 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
+        - mnd
         - funlen
         - dupl
         - gocyclo
