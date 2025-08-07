@@ -6,7 +6,7 @@ import (
 )
 
 func TestDetectDistribution(t *testing.T) {
-	executor := &SystemExecutor{}
+	executor := &DefaultExecutor{}
 
 	// Test basic detection (will return actual system distribution)
 	distro := executor.DetectDistribution()
@@ -62,16 +62,16 @@ func TestNewSystemExecutor(t *testing.T) {
 	}
 
 	// Type assertion to check internal structure
-	if sysExec, ok := executor.(*SystemExecutor); ok {
+	if sysExec, ok := executor.(*DefaultExecutor); ok {
 		t.Logf("System executor initialized with privilege command: %s", sysExec.privilegeCmd)
 	} else {
-		t.Error("NewSystemExecutor() did not return *SystemExecutor")
+		t.Error("NewSystemExecutor() did not return *DefaultExecutor")
 	}
 }
 
 func TestUpdateSystemError(t *testing.T) {
 	// Create executor with no privilege command in a controlled way
-	executor := &SystemExecutor{
+	executor := &DefaultExecutor{
 		privilegeCmd: "",
 	}
 

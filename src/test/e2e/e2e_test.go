@@ -60,18 +60,22 @@ func (c *TestClient) sendWebhook(action string) (*http.Response, error) {
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", c.baseURL+"/webhook", bytes.NewBuffer(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Cloud-Update-Signature", c.generateSignature(body))
 
-	return c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	return resp, nil
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -256,7 +260,7 @@ func TestConcurrentWebhooks(t *testing.T) {
 		go func(id int) {
 			resp, err := client.sendWebhook("update")
 			if err != nil {
-				errors <- fmt.Errorf("request %d failed: %v", id, err)
+				errors <- fmt.Errorf("request %d failed: %w", id, err)
 				done <- false
 				return
 			}

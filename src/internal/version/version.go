@@ -19,7 +19,7 @@ func GetFullVersion() string {
 		Version, Commit, Date, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
 
-// GetShortVersion returns just the version number
+// GetShortVersion returns just the version number.
 func GetShortVersion() string {
 	return Version
 }

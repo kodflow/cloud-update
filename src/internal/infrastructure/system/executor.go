@@ -32,14 +32,14 @@ type Executor interface {
 	DetectDistribution() Distribution
 }
 
-// SystemExecutor implements the Executor interface for real system operations.
-type SystemExecutor struct {
+// DefaultExecutor implements the Executor interface for real system operations.
+type DefaultExecutor struct {
 	privilegeCmd string
 }
 
 // NewSystemExecutor creates a new system executor.
 func NewSystemExecutor() Executor {
-	return &SystemExecutor{
+	return &DefaultExecutor{
 		privilegeCmd: detectPrivilegeCommand(),
 	}
 }
@@ -56,7 +56,7 @@ func detectPrivilegeCommand() string {
 	return ""
 }
 
-func (e *SystemExecutor) runPrivileged(args ...string) error {
+func (e *DefaultExecutor) runPrivileged(args ...string) error {
 	// This function runs system commands with appropriate privileges
 	// Commands are predefined and not user-controlled
 	if e.privilegeCmd == "" {
@@ -88,17 +88,17 @@ func (e *SystemExecutor) runPrivileged(args ...string) error {
 }
 
 // RunCloudInit executes cloud-init on the system.
-func (e *SystemExecutor) RunCloudInit() error {
+func (e *DefaultExecutor) RunCloudInit() error {
 	return e.runPrivileged("cloud-init", "init")
 }
 
 // Reboot schedules a system reboot.
-func (e *SystemExecutor) Reboot() error {
+func (e *DefaultExecutor) Reboot() error {
 	return e.runPrivileged("reboot")
 }
 
 // UpdateSystem performs a system update based on the detected distribution.
-func (e *SystemExecutor) UpdateSystem() error {
+func (e *DefaultExecutor) UpdateSystem() error {
 	distro := e.DetectDistribution()
 
 	switch distro {
@@ -135,7 +135,7 @@ func (e *SystemExecutor) UpdateSystem() error {
 }
 
 // DetectDistribution detects the current Linux distribution.
-func (e *SystemExecutor) DetectDistribution() Distribution {
+func (e *DefaultExecutor) DetectDistribution() Distribution {
 	if _, err := os.Stat("/etc/alpine-release"); err == nil {
 		return DistroAlpine
 	}

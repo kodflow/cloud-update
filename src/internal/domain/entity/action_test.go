@@ -105,6 +105,11 @@ func TestJob(t *testing.T) {
 		t.Errorf("Initial status should be running, got %s", job.Status)
 	}
 
+	// Verify StartTime was set
+	if job.StartTime.IsZero() {
+		t.Error("StartTime should not be zero")
+	}
+
 	// Test completion
 	endTime := now.Add(5 * time.Second)
 	job.EndTime = &endTime
