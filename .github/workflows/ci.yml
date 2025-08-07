@@ -19,10 +19,13 @@ jobs:
       - name: Mount bazel cache
         uses: actions/cache@v4
         with:
-          path: "~/.cache/bazel"
-          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-${{ runner.os }}-
+            bazel-v2-${{ runner.os }}-
+            bazel-v2-
 
       - name: Run unit tests
         run: bazel test //src/internal/... //src/cmd/... --test_output=errors
@@ -50,10 +53,13 @@ jobs:
       - name: Mount bazel cache
         uses: actions/cache@v4
         with:
-          path: "~/.cache/bazel"
-          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-${{ runner.os }}-
+            bazel-v2-${{ runner.os }}-
+            bazel-v2-
 
       - name: Load test environment
         run: |
@@ -84,10 +90,13 @@ jobs:
       - name: Mount bazel cache
         uses: actions/cache@v4
         with:
-          path: "~/.cache/bazel"
-          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-${{ runner.os }}-
+            bazel-v2-${{ runner.os }}-
+            bazel-v2-
 
       - name: Build binary
         run: bazel build //src/cmd/cloud-update:cloud-update
