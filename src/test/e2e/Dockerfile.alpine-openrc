@@ -1,0 +1,49 @@
+FROM alpine:3.19
+
+# Install OpenRC and dependencies
+RUN apk add --no-cache \
+    curl \
+    openssl \
+    bash \
+    openrc \
+    && rc-status || true
+
+# Setup OpenRC for container
+RUN mkdir -p /run/openrc && \
+    touch /run/openrc/softlevel && \
+    echo 'rc_sys="docker"' >> /etc/rc.conf && \
+    echo 'rc_provide="loopback net"' >> /etc/rc.conf
+
+# Copy the pre-built binary and install script
+WORKDIR /app
+COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
+COPY scripts/install.sh /app/install.sh
+
+# Make scripts executable
+RUN chmod 755 /app/cloud-update /app/install.sh
+
+# Set test environment variables
+ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+ENV CLOUD_UPDATE_PORT=9999
+ENV CLOUD_UPDATE_LOG_LEVEL=debug
+
+# Run installation
+RUN /app/install.sh
+
+# Enable and start the service at boot
+RUN rc-update add cloud-update default && \
+    rc-update add local default
+
+# Create startup script to launch OpenRC
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'exec /sbin/openrc-init' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=5 \
+    CMD curl -f http://localhost:9999/health || exit 1
+
+EXPOSE 9999
+
+# Start OpenRC init system
+ENTRYPOINT ["/entrypoint.sh"]

@@ -11,9 +11,18 @@ test-unit:
 	@echo "Running unit tests with Bazel..."
 	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run all E2E tests
-test-e2e: test-e2e-alpine test-e2e-ubuntu test-e2e-debian test-e2e-rockylinux test-e2e-fedora test-e2e-arch test-e2e-opensuse
-	@echo "✅ All E2E tests completed!"
+# Run init system tests (the new focused E2E tests)
+test-init:
+	@echo "Running init system tests..."
+	@chmod +x scripts/test_init_systems.sh
+	@./scripts/test_init_systems.sh
+
+# Run all E2E tests (legacy - for all distributions)
+test-e2e-all: test-e2e-alpine test-e2e-ubuntu test-e2e-debian test-e2e-rockylinux test-e2e-fedora test-e2e-arch test-e2e-opensuse
+	@echo "✅ All distribution tests completed!"
+
+# Run E2E tests (now points to init system tests)
+test-e2e: test-init
 
 # Run E2E test for Alpine
 test-e2e-alpine:
