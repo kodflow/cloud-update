@@ -16,8 +16,8 @@ permissions:
   issues: write
 
 jobs:
-  # Analyse job - fast feedback for code quality
-  analyze:
+  # Version job - determines version for all other jobs
+  version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -40,6 +40,14 @@ jobs:
           echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
           echo "📦 Version: ${VERSION}"
 
+  # Analyze job - runs in parallel with test
+  analyze:
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -53,10 +61,10 @@ jobs:
           args: --timeout=5m ./src/...
           skip-cache: true
 
-  # Unit tests job
+  # Unit tests job - runs in parallel with analyze
   test:
     runs-on: ubuntu-latest
-    needs: analyze
+    needs: version
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,10 +94,10 @@ jobs:
           path: bazel-testlogs/**/*.xml
           retention-days: 7
 
-  # Build job - creates binary for E2E tests
+  # Build job - waits for BOTH analyze and test to complete
   build:
     runs-on: ubuntu-latest
-    needs: analyze
+    needs: [version, analyze, test]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,10 +135,10 @@ jobs:
           path: dist/cloud-update
           retention-days: 1
 
-  # E2E tests - run in parallel
+  # E2E tests - run in parallel after build
   e2e:
     runs-on: ubuntu-latest
-    needs: [test, build]
+    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -171,7 +179,7 @@ jobs:
   release:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [analyze, test, build, e2e]
+    needs: [version, e2e]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -212,7 +220,7 @@ jobs:
 
       - name: Create tag
         run: |
-          TAG="${{ needs.analyze.outputs.version }}"
+          TAG="${{ needs.version.outputs.version }}"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           
@@ -224,8 +232,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.analyze.outputs.version }}
-          name: Release ${{ needs.analyze.outputs.version }}
+          tag_name: ${{ needs.version.outputs.version }}
+          name: Release ${{ needs.version.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
