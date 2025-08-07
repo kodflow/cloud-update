@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    # Test ALL pull requests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,12 +16,14 @@ permissions:
   issues: write
 
 jobs:
-  version:
+  # Single job that handles everything except release
+  ci:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
+      # === SETUP PHASE ===
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -32,24 +33,13 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            # Main branch - create a timestamped version
             VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
           else
-            # Pull request or other branch - dev version
             VERSION="v0.0.0-dev-${GITHUB_SHA::8}"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
-          echo "Version: ${VERSION}"
-
-  analyze:
-    runs-on: ubuntu-latest
-    needs: version
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          echo "📦 Version: ${VERSION}"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -57,140 +47,83 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m ./src/...
-
-      # SonarCloud disabled temporarily - project needs to be configured in SonarCloud first
-      # - name: SonarCloud Scan
-      #   uses: SonarSource/sonarcloud-github-action@master
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      #   if: env.SONAR_TOKEN != ''
-
-  test:
-    runs-on: ubuntu-latest
-    needs: [version, analyze]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
 
-      - name: Mount bazel cache
+      - name: Cache Bazel
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/bazel
             ~/.cache/bazelisk
-          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
+            bazel-bin
+            bazel-out
+          key: bazel-v3-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-v2-${{ runner.os }}-
-            bazel-v2-
+            bazel-v3-${{ runner.os }}-
+            bazel-v3-
 
+      # === ANALYZE PHASE ===
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m ./src/...
+          skip-cache: true  # Use Go cache instead
+
+      # === BUILD PHASE (build once, use everywhere) ===
+      - name: Build binary
+        run: |
+          bazel build //src/cmd/cloud-update:cloud-update \
+            --stamp \
+            --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
+          
+          # Copy binary to a known location
+          cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update ./cloud-update
+          chmod +x ./cloud-update
+
+      - name: Test binary
+        run: |
+          ./cloud-update --version
+          ./cloud-update --help
+
+      # === TEST PHASE ===
       - name: Run unit tests
-        run: bazel test //src/internal/... //src/cmd/... --test_output=errors
+        run: bazel test //src/internal/... //src/cmd/... --test_output=errors --cache_test_results=no
 
+      # === E2E PHASE (parallel) ===
+      - name: Run E2E tests in parallel
+        run: |
+          if [ -f .env.test ]; then
+            grep -v '^#' .env.test | grep -v '^$' >> $GITHUB_ENV
+          fi
+          chmod +x src/test/e2e/run_parallel.sh
+          ./src/test/e2e/run_parallel.sh
+
+      - name: Clean up containers
+        if: always()
+        run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
+
+      # === ARTIFACTS ===
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
           path: bazel-testlogs/**/*.xml
+          retention-days: 7
 
-  e2e:
-    runs-on: ubuntu-latest
-    needs: [version, test]
-    strategy:
-      matrix:
-        include:
-          - init_system: openrc
-            distro: alpine
-          - init_system: systemd
-            distro: ubuntu
-          - init_system: sysvinit
-            distro: debian
-      fail-fast: false
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bazelisk
-        uses: bazelbuild/setup-bazelisk@v3
-
-      - name: Mount bazel cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazelisk
-          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
-          restore-keys: |
-            bazel-v2-${{ runner.os }}-
-            bazel-v2-
-
-      - name: Load test environment
-        run: |
-          if [ -f .env.test ]; then
-            grep -v '^#' .env.test | grep -v '^$' >> $GITHUB_ENV
-          fi
-
-      - name: Run E2E test for ${{ matrix.init_system }} (${{ matrix.distro }})
-        run: |
-          chmod +x src/test/e2e/test_distro.sh
-          ./src/test/e2e/test_distro.sh ${{ matrix.distro }}
-
-      - name: Clean up on failure
-        if: failure()
-        run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans
-
-  build:
-    runs-on: ubuntu-latest
-    needs: [version, test, e2e]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bazelisk
-        uses: bazelbuild/setup-bazelisk@v3
-
-      - name: Mount bazel cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazelisk
-          key: bazel-v2-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
-          restore-keys: |
-            bazel-v2-${{ runner.os }}-
-            bazel-v2-
-
-      - name: Build binary
-        run: |
-          bazel build //src/cmd/cloud-update:cloud-update \
-            --stamp \
-            --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
-
-      - name: Test binary
-        run: |
-          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
-          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
-
-      - name: Upload artifact
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: cloud-update-${{ runner.os }}-${{ needs.version.outputs.tag }}
-          path: bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update
+          name: cloud-update-${{ runner.os }}-${{ steps.version.outputs.tag }}
+          path: ./cloud-update
+          retention-days: 30
 
   release:
-    # Create tag and release when pushing to main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [version, build]
+    needs: ci
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -211,23 +144,21 @@ jobs:
 
       - name: Create tag and release
         run: |
-          TAG="${{ needs.version.outputs.version }}"
+          TAG="${{ needs.ci.outputs.version }}"
           
-          # Check if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping..."
             exit 0
           fi
           
-          # Create and push tag
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.version.outputs.version }}
-          name: Release ${{ needs.version.outputs.version }}
+          tag_name: ${{ needs.ci.outputs.version }}
+          name: Release ${{ needs.ci.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true

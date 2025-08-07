@@ -1,131 +1,117 @@
-.PHONY: help test test-unit test-e2e build clean gazelle
+.PHONY: all build test lint e2e clean help
 
 # Variables
-BINARY_NAME=cloud-update
+BINARY_NAME := cloud-update
+BAZEL := bazel
+GO := go
+GOLANGCI_LINT := golangci-lint
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-# Default target - show help
+# Colors
+RED := \033[0;31m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+NC := \033[0m # No Color
+
+## help: Display this help message
 help:
-	@echo "Cloud Update - Available Commands"
-	@echo "================================="
-	@echo ""
-	@echo "Testing:"
-	@echo "  make test              - Run all tests (unit + e2e)"
-	@echo "  make test-unit         - Run unit tests only"
-	@echo "  make test-e2e          - Run all E2E tests (OpenRC, Systemd, SysVInit)"
-	@echo "  make test-e2e-alpine   - Test OpenRC (Alpine)"
-	@echo "  make test-e2e-ubuntu   - Test Systemd (Ubuntu)"
-	@echo "  make test-e2e-debian   - Test SysVInit (Debian)"
-	@echo "  make test-e2e-clean    - Clean up E2E test environment"
-	@echo ""
-	@echo "Building:"
-	@echo "  make build             - Build binary for current platform"
-	@echo "  make gazelle           - Update BUILD files with Gazelle"
-	@echo ""
-	@echo "Cleaning:"
-	@echo "  make clean             - Clean all build artifacts and containers"
-	@echo ""
-	@echo "CI/CD:"
-	@echo "  make gha               - Simulate GitHub Actions workflow locally"
-	@echo ""
-	@echo "Help:"
-	@echo "  make help              - Show this help message"
-	@echo ""
+	@echo "Available targets:"
+	@grep -E '^##' Makefile | sed 's/## //'
 
-# Test command - runs both unit and e2e tests
-test: test-unit test-e2e
+## all: Build and test everything
+all: lint test build
 
-# Run unit tests only with Bazel
-test-unit:
-	@echo "Running unit tests with Bazel..."
-	@bazel test //src/internal/... //src/cmd/... --test_output=errors
-
-# Run E2E test for OpenRC (Alpine)
-test-e2e-alpine:
-	@echo "Running E2E test for OpenRC (Alpine)..."
-	@chmod +x src/test/e2e/test_distro.sh
-	@./src/test/e2e/test_distro.sh alpine
-
-# Run E2E test for Systemd (Ubuntu)
-test-e2e-ubuntu:
-	@echo "Running E2E test for Systemd (Ubuntu)..."
-	@chmod +x src/test/e2e/test_distro.sh
-	@./src/test/e2e/test_distro.sh ubuntu
-
-# Run E2E test for SysVInit (Debian)
-test-e2e-debian:
-	@echo "Running E2E test for SysVInit (Debian)..."
-	@chmod +x src/test/e2e/test_distro.sh
-	@./src/test/e2e/test_distro.sh debian
-
-# Run all E2E tests (all init systems)
-test-e2e: test-e2e-alpine test-e2e-ubuntu test-e2e-debian
-	@echo "✅ All E2E tests completed!"
-
-# Clean up E2E test environment
-test-e2e-clean:
-	@echo "Cleaning up E2E test environment..."
-	@docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans
-
-# Build binary with Bazel for current platform
+## build: Build the binary
 build:
-	@echo "Building $(BINARY_NAME) with Bazel..."
-	@bazel build //src/cmd/cloud-update:cloud-update
-	@echo "Binary available at: bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update"
+	@echo "$(YELLOW)🔨 Building $(BINARY_NAME)...$(NC)"
+	@$(BAZEL) build //src/cmd/cloud-update:cloud-update \
+		--stamp \
+		--workspace_status_command="echo BUILD_VERSION $(VERSION)"
+	@cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update ./$(BINARY_NAME)
+	@chmod +x ./$(BINARY_NAME)
+	@echo "$(GREEN)✅ Binary built: ./$(BINARY_NAME)$(NC)"
 
-# Clean build artifacts
+## test: Run unit tests
+test:
+	@echo "$(YELLOW)🧪 Running unit tests...$(NC)"
+	@$(BAZEL) test //src/internal/... //src/cmd/... --test_output=errors --cache_test_results=no
+	@echo "$(GREEN)✅ Unit tests passed$(NC)"
+
+## lint: Run golangci-lint
+lint:
+	@echo "$(YELLOW)🔍 Running linter...$(NC)"
+	@$(GOLANGCI_LINT) run --timeout=5m ./src/...
+	@echo "$(GREEN)✅ Linting passed$(NC)"
+
+## e2e: Run E2E tests in parallel
+e2e:
+	@echo "$(YELLOW)🚀 Running E2E tests...$(NC)"
+	@chmod +x src/test/e2e/run_parallel.sh
+	@./src/test/e2e/run_parallel.sh
+
+## e2e-single: Run E2E test for a specific distro (usage: make e2e-single DISTRO=alpine)
+e2e-single:
+	@if [ -z "$(DISTRO)" ]; then \
+		echo "$(RED)❌ Please specify DISTRO (alpine, ubuntu, or debian)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)🧪 Running E2E test for $(DISTRO)...$(NC)"
+	@chmod +x src/test/e2e/test_distro.sh
+	@./src/test/e2e/test_distro.sh $(DISTRO)
+
+## run: Run the binary locally
+run: build
+	@echo "$(YELLOW)🚀 Starting $(BINARY_NAME)...$(NC)"
+	@./$(BINARY_NAME)
+
+## install: Install the binary to /usr/local/bin
+install: build
+	@echo "$(YELLOW)📦 Installing $(BINARY_NAME)...$(NC)"
+	@sudo cp ./$(BINARY_NAME) /usr/local/bin/
+	@echo "$(GREEN)✅ Installed to /usr/local/bin/$(BINARY_NAME)$(NC)"
+
+## clean: Clean build artifacts
 clean:
-	@echo "Cleaning all build artifacts and generated files..."
-	@echo "Stopping Docker containers..."
-	@docker compose -f src/test/e2e/docker-compose.yml down 2>/dev/null || true
-	@echo "Cleaning Bazel artifacts..."
-	@bazel clean --expunge 2>/dev/null || true
-	@echo "Removing build directories..."
-	@rm -rf dist/ build/ release/
-	@echo "Removing Bazel symlinks and cache..."
-	@rm -rf bazel-* .bazel/
-	@echo "Removing Go test cache..."
-	@go clean -testcache 2>/dev/null || true
-	@echo "Removing temporary files..."
-	@find . -type f -name "*.tmp" -o -name "*.temp" -o -name "*.bak" -o -name "*.log" -o -name "*.out" | xargs rm -f 2>/dev/null || true
-	@echo "Removing OS specific files..."
-	@find . -type f -name ".DS_Store" -o -name "Thumbs.db" -o -name "desktop.ini" | xargs rm -f 2>/dev/null || true
-	@echo "Removing IDE files..."
-	@rm -rf .idea/ .vscode/ *.iml
-	@echo "Removing coverage files..."
-	@rm -f coverage.txt coverage.html *.test
-	@echo "Removing lock files if they exist..."
-	@rm -f MODULE.bazel.lock
-	@echo "✅ Clean completed!"
+	@echo "$(YELLOW)🧹 Cleaning...$(NC)"
+	@$(BAZEL) clean
+	@rm -f ./$(BINARY_NAME)
+	@docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans 2>/dev/null || true
+	@echo "$(GREEN)✅ Cleaned$(NC)"
 
-# Update BUILD files with Gazelle
-gazelle:
-	@echo "Updating BUILD files..."
-	@bazel run //:gazelle
-	@bazel run //:gazelle -- update-repos -from_file=go.mod
+## deps: Download and verify dependencies
+deps:
+	@echo "$(YELLOW)📦 Downloading dependencies...$(NC)"
+	@$(GO) mod download
+	@$(GO) mod verify
+	@$(BAZEL) run //:gazelle
+	@echo "$(GREEN)✅ Dependencies ready$(NC)"
 
-# Simulate GitHub Actions workflow locally
-gha:
-	@echo "============================================"
-	@echo "Simulating GitHub Actions CI workflow"
-	@echo "============================================"
-	@echo ""
-	@echo "=== Job: test ==="
-	@echo "Step 1/3: Checkout code ✓"
-	@echo "Step 2/3: Setup Bazel ✓"
-	@echo "Step 3/3: Run unit tests with Bazel..."
-	@bazel test //src/internal/... //src/cmd/... --test_output=errors
-	@echo ""
-	@echo "✅ Job: test completed successfully"
-	@echo ""
-	@echo "=== Job: build (depends on test) ==="
-	@echo "Step 1/3: Checkout code ✓"
-	@echo "Step 2/3: Setup Bazel ✓"
-	@echo "Step 3/3: Build with Bazel..."
-	@bazel build //src/cmd/cloud-update:cloud-update
-	@echo "Step 4/4: Test binary..."
-	@bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
-	@bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
-	@echo ""
-	@echo "============================================"
-	@echo "✅ GitHub Actions simulation completed!"
-	@echo "============================================"
+## fmt: Format Go code
+fmt:
+	@echo "$(YELLOW)✨ Formatting code...$(NC)"
+	@$(GO) fmt ./...
+	@echo "$(GREEN)✅ Code formatted$(NC)"
+
+## ci: Run the same checks as CI (lint, test, build, e2e)
+ci: lint test build e2e
+	@echo "$(GREEN)✅ All CI checks passed!$(NC)"
+
+## quick: Quick build and test (no linting or E2E)
+quick: test build
+	@echo "$(GREEN)✅ Quick check passed$(NC)"
+
+## docker-up: Start E2E test containers
+docker-up:
+	@echo "$(YELLOW)🐳 Starting test containers...$(NC)"
+	@docker compose -f src/test/e2e/docker-compose.yml up -d
+	@echo "$(GREEN)✅ Containers started$(NC)"
+
+## docker-down: Stop E2E test containers
+docker-down:
+	@echo "$(YELLOW)🐳 Stopping test containers...$(NC)"
+	@docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans
+	@echo "$(GREEN)✅ Containers stopped$(NC)"
+
+## version: Show version information
+version:
+	@echo "$(BINARY_NAME) version: $(VERSION)"
