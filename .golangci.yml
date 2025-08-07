@@ -57,7 +57,7 @@ linters-settings:
         arguments: [120]
 
   gosec:
-    severity: warning
+    severity: medium
     confidence: medium
     excludes:
       - G104  # Errors unhandled (covered by errcheck)
@@ -156,14 +156,14 @@ run:
   tests: true
   build-tags:
     - integration
-  skip-dirs:
+  exclude-dirs:
     - bazel-bin
     - bazel-out
     - bazel-testlogs
     - bazel-cloud-update
     - vendor
     - .git
-  skip-files:
+  exclude-files:
     - ".*\\.pb\\.go$"
     - ".*\\.gen\\.go$"
     - "mock_.*\\.go$"
@@ -173,5 +173,4 @@ output:
     - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
   sort-results: true
