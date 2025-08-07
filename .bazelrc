@@ -1,5 +1,8 @@
 # Bazel configuration for cloud-update
 
+# Enable WORKSPACE mode for Bazel 8 compatibility
+common --enable_workspace
+
 # Build options
 build --stamp
 build --workspace_status_command="echo BUILD_USER $USER"
