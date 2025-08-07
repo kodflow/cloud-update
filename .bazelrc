@@ -30,5 +30,4 @@ build --local_ram_resources=2048
 build --local_cpu_resources=2
 
 # Go specific
-build --@io_bazel_rules_go//go/config:race=false
-test --@io_bazel_rules_go//go/config:race=true
+# Race detection is handled by go test flags directly
