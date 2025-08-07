@@ -36,10 +36,28 @@ build:
 
 # Clean build artifacts
 clean:
-	@echo "Cleaning..."
-	@bazel clean
-	@rm -rf dist/
-	@cd src/test/e2e && docker compose down 2>/dev/null || true
+	@echo "Cleaning all build artifacts and generated files..."
+	@echo "Stopping Docker containers..."
+	@docker compose -f src/test/e2e/docker-compose.yml down 2>/dev/null || true
+	@echo "Cleaning Bazel artifacts..."
+	@bazel clean --expunge 2>/dev/null || true
+	@echo "Removing build directories..."
+	@rm -rf dist/ build/ release/
+	@echo "Removing Bazel symlinks and cache..."
+	@rm -rf bazel-* .bazel/
+	@echo "Removing Go test cache..."
+	@go clean -testcache 2>/dev/null || true
+	@echo "Removing temporary files..."
+	@find . -type f -name "*.tmp" -o -name "*.temp" -o -name "*.bak" -o -name "*.log" -o -name "*.out" | xargs rm -f 2>/dev/null || true
+	@echo "Removing OS specific files..."
+	@find . -type f -name ".DS_Store" -o -name "Thumbs.db" -o -name "desktop.ini" | xargs rm -f 2>/dev/null || true
+	@echo "Removing IDE files..."
+	@rm -rf .idea/ .vscode/ *.iml
+	@echo "Removing coverage files..."
+	@rm -f coverage.txt coverage.html *.test
+	@echo "Removing lock files if they exist..."
+	@rm -f MODULE.bazel.lock
+	@echo "✅ Clean completed!"
 
 # Update BUILD files with Gazelle
 gazelle:
