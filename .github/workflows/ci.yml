@@ -25,7 +25,8 @@ jobs:
           go mod verify
 
       - name: Run unit tests
-        run: make test-unit
+        run: |
+          CLOUD_UPDATE_SECRET=test go test -v -race $(go list ./src/... | grep -v /e2e)
 
       - name: Run E2E tests
         run: make test-e2e
@@ -51,7 +52,7 @@ jobs:
       - name: Build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          make build
+          GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
 
       - name: Test binary
         run: |
