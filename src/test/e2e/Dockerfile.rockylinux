@@ -1,14 +1,8 @@
 FROM rockylinux:9
 
-# Install runtime dependencies
-RUN yum clean all && \
-    yum makecache && \
-    yum install -y \
+# Install only essential runtime dependencies
+RUN yum install -y --nogpgcheck --allowerasing \
     curl \
-    openssl \
-    systemd \
-    cloud-init \
-    --allowerasing \
     && yum clean all
 
 # Copy the pre-built binary and install script

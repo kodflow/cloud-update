@@ -1,11 +1,9 @@
 FROM opensuse/leap:15.5
 
-# Install runtime dependencies
-RUN zypper install -y \
+# Install only essential runtime dependencies
+RUN zypper install -y --no-gpg-checks \
     curl \
     openssl \
-    systemd \
-    cloud-init \
     && zypper clean -a
 
 # Copy the pre-built binary and install script

@@ -1,12 +1,9 @@
 FROM archlinux/archlinux:latest
 
-# Install runtime dependencies
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm \
+# Install only essential runtime dependencies
+RUN pacman -Sy --noconfirm \
     curl \
-    openssl \
-    systemd \
-    cloud-init
+    openssl
 
 # Copy the pre-built binary and install script
 WORKDIR /app
