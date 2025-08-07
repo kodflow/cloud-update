@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 )
 
@@ -18,16 +19,16 @@ type hmacAuthenticator struct {
 }
 
 // NewHMACAuthenticator creates a new HMAC-based authenticator.
-func NewHMACAuthenticator(secret string) Authenticator {
+func NewHMACAuthenticator(secret string) (Authenticator, error) {
 	if secret == "" {
-		panic("HMAC secret cannot be empty")
+		return nil, fmt.Errorf("HMAC secret cannot be empty")
 	}
 	if len(secret) < 32 {
-		panic("HMAC secret must be at least 32 characters long for security")
+		return nil, fmt.Errorf("HMAC secret must be at least 32 characters long for security")
 	}
 	return &hmacAuthenticator{
 		secret: secret,
-	}
+	}, nil
 }
 
 func (a *hmacAuthenticator) ValidateSignature(r *http.Request, body []byte) bool {

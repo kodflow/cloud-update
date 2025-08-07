@@ -84,13 +84,13 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
           else
             VERSION="v0.0.0-dev-${GITHUB_SHA::8}"
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${VERSION#v}" >> "$GITHUB_OUTPUT"
           echo "📦 Version: ${VERSION}"
 
       - name: Setup Bazelisk

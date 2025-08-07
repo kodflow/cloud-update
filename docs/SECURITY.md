@@ -37,7 +37,7 @@ URL="http://localhost:9999/webhook"
 PAYLOAD='{"action":"update","timestamp":'$(date +%s)'}'
 
 # Calculer la signature HMAC-SHA256
-SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^SHA2-256= //')
+SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^SHA2-256= //')
 
 # Envoyer la requête
 curl -X POST "$URL" \
@@ -161,7 +161,7 @@ func main() {
 
 ```javascript
 const crypto = require('crypto');
-const https = require('https');
+const http = require('http');
 
 function sendSecureWebhook(action, secret, url = 'http://localhost:9999/webhook') {
     // Créer le payload
@@ -189,7 +189,7 @@ function sendSecureWebhook(action, secret, url = 'http://localhost:9999/webhook'
     };
     
     // Envoyer la requête
-    const req = https.request(url, options, (res) => {
+    const req = http.request(url, options, (res) => {
         console.log(`Status: ${res.statusCode}`);
         
         res.on('data', (data) => {
@@ -252,7 +252,7 @@ make generate-secret
 # Tester avec une signature valide
 SECRET="test-secret"
 PAYLOAD='{"action":"update","timestamp":1234567890}'
-SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^SHA2-256= //')
+SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^SHA2-256= //')
 
 echo "Payload: $PAYLOAD"
 echo "Signature: sha256=$SIGNATURE"

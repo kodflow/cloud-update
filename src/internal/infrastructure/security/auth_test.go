@@ -10,9 +10,45 @@ import (
 	"testing"
 )
 
+func TestNewHMACAuthenticator(t *testing.T) {
+	tests := []struct {
+		name    string
+		secret  string
+		wantErr bool
+	}{
+		{
+			name:    "valid secret",
+			secret:  "test-secret-key-that-is-at-least-32-characters-long",
+			wantErr: false,
+		},
+		{
+			name:    "empty secret",
+			secret:  "",
+			wantErr: true,
+		},
+		{
+			name:    "short secret",
+			secret:  "too-short",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewHMACAuthenticator(tt.secret)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewHMACAuthenticator() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestHMACAuthenticator_ValidateSignature(t *testing.T) {
 	secret := "test-secret-key-that-is-at-least-32-characters-long"
-	auth := NewHMACAuthenticator(secret)
+	auth, err := NewHMACAuthenticator(secret)
+	if err != nil {
+		t.Fatalf("Failed to create authenticator: %v", err)
+	}
 
 	tests := []struct {
 		name      string
@@ -67,7 +103,10 @@ func TestHMACAuthenticator_ValidateSignature(t *testing.T) {
 
 func BenchmarkHMACAuthenticator_ValidateSignature(b *testing.B) {
 	secret := "benchmark-secret-key-that-is-at-least-32-characters"
-	auth := NewHMACAuthenticator(secret)
+	auth, err := NewHMACAuthenticator(secret)
+	if err != nil {
+		b.Fatalf("Failed to create authenticator: %v", err)
+	}
 	body := []byte(`{"action":"update","timestamp":1234567890}`)
 
 	mac := hmac.New(sha256.New, []byte(secret))

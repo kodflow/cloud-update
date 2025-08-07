@@ -9,7 +9,7 @@ Le projet cloud-update dispose d'une suite de tests complète qui peut être ex�
 ### Tests Rapides
 ```bash
 # Suite complète (lint, format, security, unit tests)
-make tests
+make test
 
 # Tests unitaires uniquement
 go test -v ./src/...
@@ -21,7 +21,7 @@ make coverage
 ### Tests E2E
 ```bash
 # Tous les tests E2E (nécessite Docker)
-make tests-e2e
+make test-e2e
 
 # Test E2E pour une distribution spécifique
 make e2e-distro DISTRO=alpine
@@ -108,6 +108,8 @@ Pour tester avec des secrets :
 echo "GITHUB_TOKEN=your-token" > .secrets
 echo "CLOUD_UPDATE_SECRET=test-secret" >> .secrets
 
+# Sécuriser le fichier des secrets
+chmod 600 .secrets
 # Utiliser les secrets
 act push --secret-file .secrets
 ```
@@ -190,7 +192,7 @@ Le pipeline GitHub Actions comprend 6 phases :
 
 ### Tests E2E échouent
 - Vérifier que les ports 9991-9997 sont libres
-- Vérifier les logs Docker : `docker logs cloud-update-test`
+- Vérifier les logs Docker : `docker logs cloud-update-<distro>` (ex: `docker logs cloud-update-alpine`)
 - Reconstruire les images : `docker compose -f src/test/e2e/docker-compose.yml build --no-cache`
 
 ### GitHub Actions échoue mais pas en local

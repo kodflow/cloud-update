@@ -17,8 +17,8 @@ SERVICE_NAME="cloud-update"
 detect_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        OS=$ID
-        VER=$VERSION_ID
+        OS=${ID:-unknown}
+        VER=${VERSION_ID:-unknown}
     elif [ -f /etc/alpine-release ]; then
         OS="alpine"
         VER=$(cat /etc/alpine-release)
@@ -114,7 +114,7 @@ install_binary() {
     if [ ! -f "$CONFIG_DIR/config.env" ]; then
         cat > "$CONFIG_DIR/config.env" <<EOF
 CLOUD_UPDATE_PORT=9999
-CLOUD_UPDATE_SECRET=${CLOUD_UPDATE_SECRET:-change-me-in-production}
+CLOUD_UPDATE_SECRET=${CLOUD_UPDATE_SECRET:-$(openssl rand -hex 32 2>/dev/null || echo "PLEASE_SET_A_SECURE_SECRET")}
 CLOUD_UPDATE_LOG_LEVEL=info
 EOF
         chmod 600 "$CONFIG_DIR/config.env"

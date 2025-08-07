@@ -17,7 +17,9 @@ DISTRO=$1
 
 # Load environment variables
 if [ -f .env.test ]; then
-    export $(cat .env.test | grep -v '^#' | xargs)
+    set -o allexport
+    source .env.test
+    set +o allexport
 fi
 
 # Test configuration
@@ -65,7 +67,7 @@ test_webhook_endpoint() {
     echo -e "${YELLOW}Testing webhook endpoint...${NC}"
     
     PAYLOAD='{"action":"update","job_id":"test-123"}'
-    SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$E2E_SECRET" | cut -d' ' -f2)
+    SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${E2E_SECRET:-test-secret}" | cut -d' ' -f2)
     
     RESPONSE=$(curl -sf -X POST \
         -H "Content-Type: application/json" \

@@ -8,13 +8,13 @@ type ActionType string
 
 // Action types supported by the Cloud Update service.
 const (
-	ActionReinit        ActionType = "reinit"         // Réinitialiser cloud-init
-	ActionReboot        ActionType = "reboot"         // Redémarrer le serveur
-	ActionUpdate        ActionType = "update"         // Mettre à jour le système
-	ActionShutdown      ActionType = "shutdown"       // Éteindre le serveur
-	ActionExecuteScript ActionType = "execute_script" // Exécuter un script personnalisé
-	ActionUpgrade       ActionType = "upgrade"        // Mise à niveau complète du système
-	ActionRestart       ActionType = "restart"        // Redémarrer des services spécifiques
+	ActionReinit        ActionType = "reinit"         // Reinitialize cloud-init
+	ActionReboot        ActionType = "reboot"         // Reboot the server
+	ActionUpdate        ActionType = "update"         // Update the system
+	ActionShutdown      ActionType = "shutdown"       // Shut down the server
+	ActionExecuteScript ActionType = "execute_script" // Execute a custom script
+	ActionUpgrade       ActionType = "upgrade"        // Full system upgrade
+	ActionRestart       ActionType = "restart"        // Restart specific services
 )
 
 // WebhookRequest represents an incoming webhook request from GitHub.
@@ -39,7 +39,7 @@ type Job struct {
 	Status    JobStatus
 	StartTime time.Time
 	EndTime   *time.Time
-	Error     error
+	Error     error `json:"error,omitempty"`
 }
 
 // JobStatus represents the current status of a job.

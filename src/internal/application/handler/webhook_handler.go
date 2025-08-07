@@ -33,6 +33,10 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit request body size to 1MB to prevent DoS attacks
+	const maxBodySize = 1 << 20 // 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)

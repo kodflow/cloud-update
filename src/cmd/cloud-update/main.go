@@ -59,7 +59,10 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize components
-	authenticator := security.NewHMACAuthenticator(cfg.Secret)
+	authenticator, err := security.NewHMACAuthenticator(cfg.Secret)
+	if err != nil {
+		log.Fatalf("Failed to initialize authenticator: %v", err)
+	}
 	systemExecutor := system.NewSystemExecutor()
 	actionService := service.NewActionService(systemExecutor)
 

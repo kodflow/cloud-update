@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -74,8 +75,13 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 		fullArgs := append([]string{}, args...)
 		cmd = exec.Command(e.privilegeCmd, fullArgs...) // #nosec G204 - using privilege escalation tool
 	case "su":
-		shellCmd := strings.Join(args, " ")
-		cmd = exec.Command("su", "-c", shellCmd) // #nosec G204 - using su for privilege escalation
+		// Use proper shell escaping to prevent injection
+		escapedArgs := make([]string, len(args))
+		for i, arg := range args {
+			escapedArgs[i] = strconv.Quote(arg)
+		}
+		shellCmd := strings.Join(escapedArgs, " ")
+		cmd = exec.Command("su", "-c", shellCmd) // #nosec G204 - using su for privilege escalation with proper escaping
 	default:
 		cmd = exec.Command(args[0], args[1:]...) // #nosec G204 - fallback to direct execution
 	}

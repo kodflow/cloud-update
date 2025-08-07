@@ -10,7 +10,7 @@ RUN apk add --no-cache \
 # Setup OpenRC
 RUN mkdir -p /run/openrc && \
     touch /run/openrc/softlevel && \
-    rc-status || true
+    rc-status || (echo "Setup failed, but continuing for testing..." && exit 0)
 
 # Copy the pre-built binary and install script
 WORKDIR /app

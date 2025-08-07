@@ -31,7 +31,7 @@ detect_distro() {
         echo "alpine"
     elif [ -f /etc/os-release ]; then
         . /etc/os-release
-        case "$ID" in
+        case "${ID:-unknown}" in
             ubuntu) echo "ubuntu" ;;
             debian) echo "debian" ;;
             rhel|centos|fedora) echo "rhel" ;;
@@ -69,7 +69,14 @@ build_binary() {
         exit 1
     fi
     
-    go build -o "$BINARY_NAME" cmd/cloud-update/main.go
+    # Check if we're in the right directory
+    if [ ! -f "src/cmd/cloud-update/main.go" ]; then
+        print_msg "$RED" "Error: Cannot find src/cmd/cloud-update/main.go"
+        print_msg "$YELLOW" "Please run this script from the repository root"
+        exit 1
+    fi
+    
+    go build -o "$BINARY_NAME" ./src/cmd/cloud-update
     
     if [ ! -f "$BINARY_NAME" ]; then
         print_msg "$RED" "Error: Build failed"
@@ -96,16 +103,18 @@ install_files() {
     # Create configuration file if it doesn't exist
     if [ ! -f "$CONFIG_DIR/config.env" ]; then
         print_msg "$GREEN" "Creating configuration file..."
-        cat > "$CONFIG_DIR/config.env" << 'EOF'
+        GENERATED_DATE=$(date)
+        GENERATED_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -d '\n')
+        cat > "$CONFIG_DIR/config.env" << EOF
 # Cloud Update Configuration
-# Generated on: $(date)
+# Generated on: $GENERATED_DATE
 
 # Port on which the HTTP server will listen
 CLOUD_UPDATE_PORT=9999
 
 # Secret key for webhook signature validation (HMAC SHA256)
-# IMPORTANT: Replace with your generated secret key
-CLOUD_UPDATE_SECRET=CHANGE_ME_$(openssl rand -hex 16 2>/dev/null || echo "PLEASE_GENERATE_SECRET")
+# IMPORTANT: This is a generated secret key
+CLOUD_UPDATE_SECRET=$GENERATED_SECRET
 
 # Log level (debug, info, warn, error)
 CLOUD_UPDATE_LOG_LEVEL=info
@@ -133,7 +142,12 @@ install_init_script() {
     case "$INIT_SYSTEM" in
         systemd)
             print_msg "$GREEN" "Installing systemd service..."
-            cp init/systemd/cloud-update.service /etc/systemd/system/
+            if [ ! -f "src/init/systemd/cloud-update.service" ]; then
+                print_msg "$RED" "Error: Cannot find src/init/systemd/cloud-update.service"
+                print_msg "$YELLOW" "Please run this script from the repository root"
+                exit 1
+            fi
+            cp src/init/systemd/cloud-update.service /etc/systemd/system/
             systemctl daemon-reload
             print_msg "$GREEN" "Systemd service installed"
             print_msg "$YELLOW" "To enable: systemctl enable cloud-update"
@@ -142,20 +156,30 @@ install_init_script() {
             
         openrc)
             print_msg "$GREEN" "Installing OpenRC service..."
-            cp init/openrc/cloud-update /etc/init.d/
-            chmod 755 /etc/init.d/cloud-update
-            print_msg "$GREEN" "OpenRC service installed"
-            print_msg "$YELLOW" "To enable: rc-update add cloud-update default"
-            print_msg "$YELLOW" "To start: rc-service cloud-update start"
+            if [ -f "src/init/openrc/cloud-update" ]; then
+                cp src/init/openrc/cloud-update /etc/init.d/
+                chmod 755 /etc/init.d/cloud-update
+                print_msg "$GREEN" "OpenRC service installed"
+                print_msg "$YELLOW" "To enable: rc-update add cloud-update default"
+                print_msg "$YELLOW" "To start: rc-service cloud-update start"
+            else
+                print_msg "$RED" "Error: OpenRC service file not found"
+                exit 1
+            fi
             ;;
             
         sysvinit)
             print_msg "$GREEN" "Installing SysVinit service..."
-            cp init/sysvinit/cloud-update /etc/init.d/
-            chmod 755 /etc/init.d/cloud-update
-            update-rc.d cloud-update defaults 2>/dev/null || true
-            print_msg "$GREEN" "SysVinit service installed"
-            print_msg "$YELLOW" "To start: service cloud-update start"
+            if [ -f "src/init/sysvinit/cloud-update" ]; then
+                cp src/init/sysvinit/cloud-update /etc/init.d/
+                chmod 755 /etc/init.d/cloud-update
+                update-rc.d cloud-update defaults 2>/dev/null || true
+                print_msg "$GREEN" "SysVinit service installed"
+                print_msg "$YELLOW" "To start: service cloud-update start"
+            else
+                print_msg "$RED" "Error: SysVinit service file not found"
+                exit 1
+            fi
             ;;
             
         *)

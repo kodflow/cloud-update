@@ -239,7 +239,7 @@ func BenchmarkWebhookHandler(b *testing.B) {
 	}
 }
 
-// Test de sécurité HMAC pour s'assurer que les actions sont protégées.
+// HMAC security test to ensure that actions are protected.
 func TestWebhookHandler_SecurityValidation(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: false} // Signature invalide.
