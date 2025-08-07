@@ -71,25 +71,24 @@ jobs:
           args: --timeout=5m ./src/...
           skip-cache: true  # Use Go cache instead
 
+      # === TEST PHASE (run unit tests first) ===
+      - name: Run unit tests
+        run: bazel test //src/internal/... //src/cmd/... --test_output=errors --cache_test_results=no
+
       # === BUILD PHASE (build once, use everywhere) ===
-      - name: Build binary
+      - name: Build binary for E2E tests
         run: |
           bazel build //src/cmd/cloud-update:cloud-update \
             --stamp \
             --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
           
-          # Copy binary to a known location
-          cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update ./cloud-update
-          chmod +x ./cloud-update
+          # Binary is needed by E2E tests
+          echo "Binary location: $(ls -la bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update)"
 
       - name: Test binary
         run: |
-          ./cloud-update --version
-          ./cloud-update --help
-
-      # === TEST PHASE ===
-      - name: Run unit tests
-        run: bazel test //src/internal/... //src/cmd/... --test_output=errors --cache_test_results=no
+          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
+          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
 
       # === E2E PHASE (parallel) ===
       - name: Run E2E tests in parallel
@@ -117,7 +116,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cloud-update-${{ runner.os }}-${{ steps.version.outputs.tag }}
-          path: ./cloud-update
+          path: bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update
           retention-days: 30
 
   release:
