@@ -63,6 +63,11 @@ config.env
 # GoReleaser
 dist/
 
+# Bazel
+bazel-*
+.bazelrc.user
+MODULE.bazel.lock
+
 # Node modules (for semantic-release)
 node_modules/
 package-lock.json
