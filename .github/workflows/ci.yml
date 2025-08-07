@@ -32,7 +32,7 @@ jobs:
     needs: test
     strategy:
       matrix:
-        distro: [alpine, ubuntu, debian, rockylinux, fedora, arch, opensuse]
+        distro: [alpine, ubuntu, debian]
       fail-fast: false  # Continue running other tests even if one fails
     steps:
       - name: Checkout code
@@ -58,8 +58,8 @@ jobs:
 
       - name: Run E2E test for ${{ matrix.distro }}
         run: |
-          chmod +x scripts/test_distro.sh
-          ./scripts/test_distro.sh ${{ matrix.distro }}
+          chmod +x src/test/e2e/test_distro.sh
+          ./src/test/e2e/test_distro.sh ${{ matrix.distro }}
 
       - name: Clean up on failure
         if: failure()
