@@ -127,6 +127,19 @@ linters-settings:
     for-loops: true
 
 issues:
+  exclude-dirs:
+    - bazel-bin
+    - bazel-out
+    - bazel-testlogs
+    - bazel-cloud-update
+    - vendor
+    - .git
+  
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+    - "mock_.*\\.go$"
+    
   exclude-rules:
     # Exclude some linters from running on tests files
     - path: _test\.go
@@ -156,17 +169,6 @@ run:
   tests: true
   build-tags:
     - integration
-  exclude-dirs:
-    - bazel-bin
-    - bazel-out
-    - bazel-testlogs
-    - bazel-cloud-update
-    - vendor
-    - .git
-  exclude-files:
-    - ".*\\.pb\\.go$"
-    - ".*\\.gen\\.go$"
-    - "mock_.*\\.go$"
 
 output:
   formats:
