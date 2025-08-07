@@ -11,11 +11,56 @@ test-unit:
 	@echo "Running unit tests with Bazel..."
 	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run E2E tests with Docker
-test-e2e:
-	@echo "Running E2E tests with Docker..."
-	@chmod +x scripts/e2e_test.sh
-	@./scripts/e2e_test.sh
+# Run all E2E tests
+test-e2e: test-e2e-alpine test-e2e-ubuntu test-e2e-debian test-e2e-rockylinux test-e2e-fedora test-e2e-arch test-e2e-opensuse
+	@echo "✅ All E2E tests completed!"
+
+# Run E2E test for Alpine
+test-e2e-alpine:
+	@echo "Running E2E test for Alpine..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh alpine
+
+# Run E2E test for Ubuntu
+test-e2e-ubuntu:
+	@echo "Running E2E test for Ubuntu..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh ubuntu
+
+# Run E2E test for Debian
+test-e2e-debian:
+	@echo "Running E2E test for Debian..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh debian
+
+# Run E2E test for Rocky Linux
+test-e2e-rockylinux:
+	@echo "Running E2E test for Rocky Linux..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh rockylinux
+
+# Run E2E test for Fedora
+test-e2e-fedora:
+	@echo "Running E2E test for Fedora..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh fedora
+
+# Run E2E test for Arch Linux
+test-e2e-arch:
+	@echo "Running E2E test for Arch Linux..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh arch
+
+# Run E2E test for openSUSE
+test-e2e-opensuse:
+	@echo "Running E2E test for openSUSE..."
+	@chmod +x scripts/test_distro.sh
+	@./scripts/test_distro.sh opensuse
+
+# Clean up E2E test environment
+test-e2e-clean:
+	@echo "Cleaning up E2E test environment..."
+	@docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans
 
 # Build binary with Bazel for current platform
 build:

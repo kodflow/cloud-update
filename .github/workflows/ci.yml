@@ -30,6 +30,10 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: test
+    strategy:
+      matrix:
+        distro: [alpine, ubuntu, debian, rockylinux, fedora, arch, opensuse]
+      fail-fast: false  # Continue running other tests even if one fails
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,10 +49,20 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
-      - name: Run E2E tests
+      - name: Load test environment
         run: |
-          chmod +x scripts/e2e_test.sh
-          ./scripts/e2e_test.sh
+          if [ -f .env.test ]; then
+            cat .env.test >> $GITHUB_ENV
+          fi
+
+      - name: Run E2E test for ${{ matrix.distro }}
+        run: |
+          chmod +x scripts/test_distro.sh
+          ./scripts/test_distro.sh ${{ matrix.distro }}
+
+      - name: Clean up on failure
+        if: failure()
+        run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans
 
   build:
     runs-on: ubuntu-latest

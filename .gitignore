@@ -47,6 +47,7 @@ desktop.ini
 .env.local
 *.env
 !config.example.env
+!.env.test
 
 # Config files with secrets
 /etc/cloud-update/config.env
