@@ -32,7 +32,13 @@ jobs:
     needs: test
     strategy:
       matrix:
-        distro: [alpine, ubuntu, debian]
+        include:
+          - init_system: openrc
+            distro: alpine
+          - init_system: systemd
+            distro: ubuntu
+          - init_system: sysvinit
+            distro: debian
       fail-fast: false  # Continue running other tests even if one fails
     steps:
       - name: Checkout code
@@ -56,7 +62,7 @@ jobs:
             grep -v '^#' .env.test | grep -v '^$' >> $GITHUB_ENV
           fi
 
-      - name: Run E2E test for ${{ matrix.distro }}
+      - name: Run E2E test for ${{ matrix.init_system }} (${{ matrix.distro }})
         run: |
           chmod +x src/test/e2e/test_distro.sh
           ./src/test/e2e/test_distro.sh ${{ matrix.distro }}

@@ -11,10 +11,10 @@ help:
 	@echo "Testing:"
 	@echo "  make test              - Run all tests (unit + e2e)"
 	@echo "  make test-unit         - Run unit tests only"
-	@echo "  make test-e2e          - Run all E2E tests (Alpine, Ubuntu, Debian)"
-	@echo "  make test-e2e-alpine   - Test Alpine with OpenRC"
-	@echo "  make test-e2e-ubuntu   - Test Ubuntu with Systemd"
-	@echo "  make test-e2e-debian   - Test Debian with SysVInit"
+	@echo "  make test-e2e          - Run all E2E tests (OpenRC, Systemd, SysVInit)"
+	@echo "  make test-e2e-alpine   - Test OpenRC (Alpine)"
+	@echo "  make test-e2e-ubuntu   - Test Systemd (Ubuntu)"
+	@echo "  make test-e2e-debian   - Test SysVInit (Debian)"
 	@echo "  make test-e2e-clean    - Clean up E2E test environment"
 	@echo ""
 	@echo "Building:"
@@ -39,25 +39,25 @@ test-unit:
 	@echo "Running unit tests with Bazel..."
 	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run E2E test for Alpine (OpenRC)
+# Run E2E test for OpenRC (Alpine)
 test-e2e-alpine:
-	@echo "Running E2E test for Alpine (OpenRC)..."
+	@echo "Running E2E test for OpenRC (Alpine)..."
 	@chmod +x src/test/e2e/test_distro.sh
 	@./src/test/e2e/test_distro.sh alpine
 
-# Run E2E test for Ubuntu (Systemd)
+# Run E2E test for Systemd (Ubuntu)
 test-e2e-ubuntu:
-	@echo "Running E2E test for Ubuntu (Systemd)..."
+	@echo "Running E2E test for Systemd (Ubuntu)..."
 	@chmod +x src/test/e2e/test_distro.sh
 	@./src/test/e2e/test_distro.sh ubuntu
 
-# Run E2E test for Debian (SysVInit)
+# Run E2E test for SysVInit (Debian)
 test-e2e-debian:
-	@echo "Running E2E test for Debian (SysVInit)..."
+	@echo "Running E2E test for SysVInit (Debian)..."
 	@chmod +x src/test/e2e/test_distro.sh
 	@./src/test/e2e/test_distro.sh debian
 
-# Run all E2E tests
+# Run all E2E tests (all init systems)
 test-e2e: test-e2e-alpine test-e2e-ubuntu test-e2e-debian
 	@echo "✅ All E2E tests completed!"
 
