@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "handler",
+    srcs = [
+        "health_handler.go",
+        "webhook_handler.go",
+    ],
+    importpath = "github.com/kodflow/cloud-update/src/internal/application/handler",
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        "//src/internal/domain/entity",
+        "//src/internal/domain/service",
+        "//src/internal/infrastructure/security",
+    ],
+)
+
+go_test(
+    name = "handler_test",
+    srcs = [
+        "health_handler_test.go",
+        "webhook_handler_test.go",
+    ],
+    embed = [":handler"],
+    deps = ["//src/internal/domain/entity"],
+)

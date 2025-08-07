@@ -1,0 +1,33 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+# Go E2E tests (for unit testing the E2E package)
+go_test(
+    name = "e2e_test",
+    srcs = ["e2e_test.go"],
+    deps = [],
+)
+
+# Shell script test for Docker E2E
+sh_test(
+    name = "docker_e2e_test",
+    srcs = ["//scripts:e2e_test.sh"],
+    data = [
+        "//scripts:install.sh",
+        "//src/cmd/cloud-update",
+        ":docker-compose.yml",
+        ":Dockerfile.alpine",
+        ":Dockerfile.arch",
+        ":Dockerfile.debian",
+        ":Dockerfile.fedora",
+        ":Dockerfile.opensuse",
+        ":Dockerfile.rockylinux",
+        ":Dockerfile.ubuntu",
+    ],
+    size = "large",
+    tags = [
+        "exclusive",
+        "manual",  # Don't run automatically, only when explicitly requested
+        "requires-docker",
+    ],
+    timeout = "long",
+)

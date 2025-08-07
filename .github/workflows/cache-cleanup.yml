@@ -1,0 +1,29 @@
+name: Cache Cleanup
+
+on:
+  schedule:
+    # Run weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup caches
+        run: |
+          echo "Cleaning up old caches..."
+          gh extension install actions/gh-actions-cache
+          
+          echo "Fetching list of cache keys..."
+          cacheKeys=$(gh actions-cache list -R ${{ github.repository }} | cut -f 1)
+          
+          ## Delete all caches
+          for cacheKey in $cacheKeys; do
+            echo "Deleting cache: $cacheKey"
+            gh actions-cache delete $cacheKey -R ${{ github.repository }} --confirm || true
+          done
+          
+          echo "Cache cleanup completed!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
