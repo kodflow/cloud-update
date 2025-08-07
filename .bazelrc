@@ -1,11 +1,34 @@
-# Use WORKSPACE instead of MODULE.bazel for now
-common --enable_bzlmod=false
-common --enable_workspace=true
+# Bazel configuration for cloud-update
 
-# Build settings
-build --incompatible_enable_cc_toolchain_resolution
-build --java_runtime_version=remotejdk_11
+# Build options
+build --stamp
+build --workspace_status_command="echo BUILD_USER $USER"
+build --workspace_status_command="echo BUILD_HOST $(hostname)"
 
-# Test settings
+# Test options
 test --test_output=errors
-test --test_summary=detailed
+test --test_verbose_timeout_warnings
+
+# CI specific options
+build:ci --noshow_progress
+build:ci --noshow_loading_progress
+build:ci --verbose_failures
+build:ci --announcement_rc
+build:ci --disk_cache=~/.cache/bazel-disk
+
+test:ci --test_output=errors
+test:ci --test_verbose_timeout_warnings
+
+# Cache options
+build --experimental_remote_cache_compression
+build --experimental_remote_cache_async
+build --remote_download_minimal
+
+# Memory options
+build --jobs=2
+build --local_ram_resources=2048
+build --local_cpu_resources=2
+
+# Go specific
+build --@io_bazel_rules_go//go/config:race=false
+test --@io_bazel_rules_go//go/config:race=true

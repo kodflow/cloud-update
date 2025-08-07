@@ -67,15 +67,16 @@ jobs:
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazelisk
-          key: bazel-test-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
+          path: ~/.cache/bazel
+          key: bazel-test-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             bazel-test-${{ runner.os }}-
 
       - name: Run unit tests
-        run: bazel test //src/internal/... //src/cmd/... --test_output=errors
+        run: |
+          bazel test --config=ci //src/internal/... //src/cmd/...
+          # Clean up to reduce cache size
+          bazel clean --async
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -99,24 +100,25 @@ jobs:
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazelisk
-          key: bazel-build-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
+          path: ~/.cache/bazel
+          key: bazel-build-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             bazel-build-${{ runner.os }}-
 
       - name: Build Linux binary
         run: |
-          bazel build --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
+          bazel build --config=ci \
+            --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
             //src/cmd/cloud-update:cloud-update \
-            --stamp \
             --workspace_status_command="echo BUILD_VERSION ${{ needs.analyze.outputs.version }}"
           
           # Prepare for E2E tests
           mkdir -p dist
           cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update
           chmod +x dist/cloud-update
+          
+          # Clean up to reduce cache size
+          bazel clean --async
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -182,10 +184,8 @@ jobs:
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazelisk
-          key: bazel-release-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', 'go.mod', 'go.sum') }}
+          path: ~/.cache/bazel
+          key: bazel-release-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             bazel-release-${{ runner.os }}-
 
@@ -197,9 +197,9 @@ jobs:
             ARCH=$(echo $platform | cut -d/ -f2)
             echo "Building for $OS/$ARCH..."
             
-            bazel build --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
+            bazel build --config=ci \
+              --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
               //src/cmd/cloud-update:cloud-update \
-              --stamp \
               --workspace_status_command="echo BUILD_VERSION ${{ needs.analyze.outputs.version }}"
             
             mkdir -p dist/cloud-update-${OS}-${ARCH}
