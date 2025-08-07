@@ -10,7 +10,6 @@ NC='\033[0m' # No Color
 # Installation directories
 INSTALL_DIR="/opt/cloud-update"
 CONFIG_DIR="/etc/cloud-update"
-BINARY_NAME="cloud-update"
 
 # Detect init system
 detect_init_system() {
