@@ -13,7 +13,7 @@ test --test_verbose_timeout_warnings
 build:ci --noshow_progress
 build:ci --noshow_loading_progress
 build:ci --verbose_failures
-build:ci --announcement_rc
+build:ci --announce_rc
 build:ci --disk_cache=~/.cache/bazel-disk
 
 test:ci --test_output=errors
