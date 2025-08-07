@@ -16,34 +16,9 @@ permissions:
   issues: write
 
 jobs:
-  # Version job - determines version for all other jobs
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
-          else
-            VERSION="v0.0.0-dev-${GITHUB_SHA::8}"
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
-          echo "📦 Version: ${VERSION}"
-
   # Analyze job - runs in parallel with test
   analyze:
     runs-on: ubuntu-latest
-    needs: version
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,7 +39,6 @@ jobs:
   # Unit tests job - runs in parallel with analyze
   test:
     runs-on: ubuntu-latest
-    needs: version
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -94,13 +68,30 @@ jobs:
           path: bazel-testlogs/**/*.xml
           retention-days: 7
 
-  # Build job - waits for BOTH analyze and test to complete
+  # Build job - waits for BOTH analyze and test to complete, generates version
   build:
     runs-on: ubuntu-latest
-    needs: [version, analyze, test]
+    needs: [analyze, test]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
+          else
+            VERSION="v0.0.0-dev-${GITHUB_SHA::8}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${VERSION}"
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
@@ -121,7 +112,7 @@ jobs:
           bazel build --config=ci \
             --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
             //src/cmd/cloud-update:cloud-update \
-            --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
+            --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
           
           # Prepare for E2E tests
           mkdir -p dist
@@ -179,7 +170,7 @@ jobs:
   release:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [version, e2e]
+    needs: [build, e2e]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -211,7 +202,7 @@ jobs:
             bazel build --config=ci \
               --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
               //src/cmd/cloud-update:cloud-update \
-              --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
+              --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
             
             mkdir -p dist/cloud-update-${OS}-${ARCH}
             cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update* dist/cloud-update-${OS}-${ARCH}/ || \
@@ -220,7 +211,7 @@ jobs:
 
       - name: Create tag
         run: |
-          TAG="${{ needs.version.outputs.version }}"
+          TAG="${{ needs.build.outputs.version }}"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           
@@ -232,8 +223,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.version.outputs.version }}
-          name: Release ${{ needs.version.outputs.version }}
+          tag_name: ${{ needs.build.outputs.version }}
+          name: Release ${{ needs.build.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
