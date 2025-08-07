@@ -52,7 +52,8 @@ jobs:
       - name: Load test environment
         run: |
           if [ -f .env.test ]; then
-            cat .env.test >> $GITHUB_ENV
+            # Filter out comments and empty lines before adding to GITHUB_ENV
+            grep -v '^#' .env.test | grep -v '^$' >> $GITHUB_ENV
           fi
 
       - name: Run E2E test for ${{ matrix.distro }}
