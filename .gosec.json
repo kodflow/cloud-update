@@ -1,32 +1,43 @@
 {
-  "Issues": ["G301", "G302", "G303", "G307", "G401", "G402", "G403", "G404", "G501", "G502", "G503", "G504", "G505", "G601"],
-  "Tests": true,
-  "Excludes": [
-    "src/test/.*",
-    ".*_test.go"
-  ],
-  "Severity": "medium",
-  "Confidence": "high",
-  "NoSecAlternative": "",
-  "TruncateIssues": false,
-  "Rules": {
-    "G114": {
-      "pattern": "ListenAndServe"
-    },
-    "G204": {
-      "excludes": [
-        "src/internal/infrastructure/system/executor.go"
-      ]
-    },
-    "G304": {
-      "excludes": [
-        "src/internal/setup/setup.go"
-      ]
-    },
-    "G306": {
-      "excludes": [
-        "src/internal/setup/setup.go"
-      ]
-    }
-  }
+  "global": {
+    "audit": "enabled",
+    "nosec": "enabled",
+    "fmt": "json",
+    "confidence": "high",
+    "severity": "medium"
+  },
+  "rules": {
+    "G101": "enabled",
+    "G102": "enabled",
+    "G103": "enabled",
+    "G104": "enabled",
+    "G106": "enabled",
+    "G107": "enabled",
+    "G201": "enabled",
+    "G202": "enabled",
+    "G203": "enabled",
+    "G204": "enabled",
+    "G301": "enabled",
+    "G302": "enabled",
+    "G303": "enabled",
+    "G304": "enabled",
+    "G305": "enabled",
+    "G306": "enabled",
+    "G307": "enabled",
+    "G401": "enabled",
+    "G402": "enabled",
+    "G403": "enabled",
+    "G404": "enabled",
+    "G501": "enabled",
+    "G502": "enabled",
+    "G503": "enabled",
+    "G504": "enabled",
+    "G505": "enabled",
+    "G601": "enabled"
+  },
+  "exclude": [
+    "bazel-*/**",
+    "vendor/**",
+    "*_test.go"
+  ]
 }

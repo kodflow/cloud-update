@@ -6,9 +6,76 @@ on:
   pull_request:
     # Test ALL pull requests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  issues: write
+
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tag push - use tag as version
+            VERSION="${{ github.ref_name }}"
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            # Main branch - create a timestamped version
+            VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
+          else
+            # Pull request or other branch - dev version
+            VERSION="v0.0.0-dev-${GITHUB_SHA::8}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+  analyze:
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m ./src/...
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        if: env.SONAR_TOKEN != ''
+
   test:
     runs-on: ubuntu-latest
+    needs: [version, analyze]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,9 +97,16 @@ jobs:
       - name: Run unit tests
         run: bazel test //src/internal/... //src/cmd/... --test_output=errors
 
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: bazel-testlogs/**/*.xml
+
   e2e:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [version, test]
     strategy:
       matrix:
         include:
@@ -42,7 +116,7 @@ jobs:
             distro: ubuntu
           - init_system: sysvinit
             distro: debian
-      fail-fast: false  # Continue running other tests even if one fails
+      fail-fast: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,7 +138,6 @@ jobs:
       - name: Load test environment
         run: |
           if [ -f .env.test ]; then
-            # Filter out comments and empty lines before adding to GITHUB_ENV
             grep -v '^#' .env.test | grep -v '^$' >> $GITHUB_ENV
           fi
 
@@ -79,7 +152,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [test, e2e]
+    needs: [version, test, e2e]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,9 +172,67 @@ jobs:
             bazel-v2-
 
       - name: Build binary
-        run: bazel build //src/cmd/cloud-update:cloud-update
+        run: |
+          bazel build //src/cmd/cloud-update:cloud-update \
+            --stamp \
+            --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
 
       - name: Test binary
         run: |
           bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
           bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-update-${{ runner.os }}-${{ needs.version.outputs.tag }}
+          path: bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update
+
+  release:
+    # Create tag and release when pushing to main
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [version, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cloud-update-*
+          path: dist/
+
+      - name: Create tag and release
+        run: |
+          TAG="${{ needs.version.outputs.version }}"
+          
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping..."
+            exit 0
+          fi
+          
+          # Create and push tag
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.version }}
+          name: Release ${{ needs.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: dist/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
