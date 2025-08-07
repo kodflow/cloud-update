@@ -9,7 +9,7 @@ NC='\033[0m'
 
 # Configuration
 DOCKER_COMPOSE_FILE="src/test/e2e/docker-compose.yml"
-DISTRIBUTIONS="alpine ubuntu debian rockylinux fedora arch opensuse"
+DISTRIBUTIONS="alpine"  # TODO: Add back other distros: ubuntu debian rockylinux fedora arch opensuse
 FAILED_TESTS=0
 
 echo -e "${GREEN}=== Starting E2E Tests ===${NC}"

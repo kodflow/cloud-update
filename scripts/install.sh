@@ -213,9 +213,9 @@ test_installation() {
     fi
     
     # Test binary execution
-    if "$INSTALL_DIR/$BINARY_NAME" --version >/dev/null 2>&1; then
+    if CLOUD_UPDATE_SECRET=test "$INSTALL_DIR/$BINARY_NAME" --version >/dev/null 2>&1; then
         echo -e "${GREEN}✓ Binary runs successfully${NC}"
-        "$INSTALL_DIR/$BINARY_NAME" --version
+        CLOUD_UPDATE_SECRET=test "$INSTALL_DIR/$BINARY_NAME" --version
     else
         echo -e "${RED}✗ Binary failed to run${NC}"
         return 1

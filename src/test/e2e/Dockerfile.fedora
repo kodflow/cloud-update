@@ -1,12 +1,12 @@
 FROM fedora:39
 
 # Install runtime dependencies
-RUN yum install -y \
+RUN dnf install -y \
     curl \
     openssl \
     systemd \
     cloud-init \
-    && yum clean all
+    && dnf clean all
 
 # Copy the pre-built binary and install script
 WORKDIR /app
