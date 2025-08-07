@@ -77,3 +77,4 @@ package.json
 # Release files
 /VERSION
 CHANGELOG.md
+cloud-update

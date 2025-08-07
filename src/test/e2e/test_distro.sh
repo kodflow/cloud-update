@@ -91,8 +91,9 @@ main() {
     
     # Clean up existing container
     echo -e "${YELLOW}Cleaning up existing container...${NC}"
-    docker compose -f $COMPOSE_FILE stop $DISTRO 2>/dev/null || true
-    docker compose -f $COMPOSE_FILE rm -f $DISTRO 2>/dev/null || true
+    : "${DOCKER_COMPOSE_FILE:=docker-compose.yml}"
+    docker compose -f $DOCKER_COMPOSE_FILE stop $DISTRO 2>/dev/null || true
+    docker compose -f $DOCKER_COMPOSE_FILE rm -f $DISTRO 2>/dev/null || true
     
     # Build Linux binary if needed
     if [ ! -f "bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update" ]; then

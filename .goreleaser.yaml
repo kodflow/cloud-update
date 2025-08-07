@@ -156,28 +156,28 @@ nfpms:
     bindir: /opt/cloud-update
     
     contents:
-      - src: ./src/init/systemd/cloud-update.service
+      - src: ./src/internal/setup/systemd/cloud-update.service
         dst: /etc/systemd/system/cloud-update.service
         type: config
         file_info:
           mode: 0644
         packager: deb
       
-      - src: ./src/init/systemd/cloud-update.service
+      - src: ./src/internal/setup/systemd/cloud-update.service
         dst: /etc/systemd/system/cloud-update.service
         type: config
         file_info:
           mode: 0644
         packager: rpm
       
-      - src: ./src/init/openrc/cloud-update
+      - src: ./src/internal/setup/openrc/cloud-update
         dst: /etc/init.d/cloud-update
         type: config
         file_info:
           mode: 0755
         packager: apk
       
-      - src: ./install.sh
+      - src: ./scripts/install.sh
         dst: /opt/cloud-update/install.sh
         file_info:
           mode: 0755
