@@ -93,16 +93,21 @@ install_binary() {
     mkdir -p "$INSTALL_DIR"
     mkdir -p "$CONFIG_DIR"
     
-    # Copy binary
-    if [ -f "./$BINARY_NAME" ]; then
-        cp "./$BINARY_NAME" "$INSTALL_DIR/"
-        chmod 755 "$INSTALL_DIR/$BINARY_NAME"
-    elif [ -f "/app/$BINARY_NAME" ]; then
-        cp "/app/$BINARY_NAME" "$INSTALL_DIR/"
-        chmod 755 "$INSTALL_DIR/$BINARY_NAME"
+    # If in test mode and binary already exists, skip copy
+    if [ "$1" = "--test" ] && [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
+        echo -e "${YELLOW}Binary already installed, skipping copy${NC}"
     else
-        echo -e "${RED}Binary not found!${NC}"
-        exit 1
+        # Copy binary
+        if [ -f "./$BINARY_NAME" ]; then
+            cp -f "./$BINARY_NAME" "$INSTALL_DIR/"
+            chmod 755 "$INSTALL_DIR/$BINARY_NAME"
+        elif [ -f "/app/$BINARY_NAME" ]; then
+            cp -f "/app/$BINARY_NAME" "$INSTALL_DIR/"
+            chmod 755 "$INSTALL_DIR/$BINARY_NAME"
+        else
+            echo -e "${RED}Binary not found!${NC}"
+            exit 1
+        fi
     fi
     
     # Create default config if not exists
@@ -328,7 +333,7 @@ main() {
     detect_init
     
     # Install binary
-    install_binary
+    install_binary "$1"
     
     # Install service based on init system
     case "$INIT_SYSTEM" in
