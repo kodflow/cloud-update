@@ -63,20 +63,20 @@ jobs:
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
+        with:
+          bazelisk-version: '1.x'
 
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-test-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: bazel-test-v2-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-test-${{ runner.os }}-
+            bazel-test-v2-${{ runner.os }}-
+            bazel-test-v2-
 
       - name: Run unit tests
-        run: |
-          bazel test --config=ci //src/internal/... //src/cmd/...
-          # Clean up to reduce cache size
-          bazel clean --async
+        run: bazel test --config=ci //src/internal/... //src/cmd/...
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -96,14 +96,17 @@ jobs:
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
+        with:
+          bazelisk-version: '1.x'
 
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-build-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: bazel-build-v2-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-build-${{ runner.os }}-
+            bazel-build-v2-${{ runner.os }}-
+            bazel-build-v2-
 
       - name: Build Linux binary
         run: |
@@ -116,9 +119,6 @@ jobs:
           mkdir -p dist
           cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update
           chmod +x dist/cloud-update
-          
-          # Clean up to reduce cache size
-          bazel clean --async
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -180,14 +180,17 @@ jobs:
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
+        with:
+          bazelisk-version: '1.x'
 
       - name: Cache Bazel
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-release-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          key: bazel-release-v2-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
-            bazel-release-${{ runner.os }}-
+            bazel-release-v2-${{ runner.os }}-
+            bazel-release-v2-
 
       - name: Build release binaries
         run: |

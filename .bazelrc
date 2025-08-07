@@ -23,9 +23,8 @@ test:ci --test_output=errors
 test:ci --test_verbose_timeout_warnings
 
 # Cache options
-build --experimental_remote_cache_compression
-build --experimental_remote_cache_async
-build --remote_download_minimal
+build --disk_cache=~/.cache/bazel-disk
+build --repository_cache=~/.cache/bazel-repo
 
 # Memory options
 build --jobs=2
