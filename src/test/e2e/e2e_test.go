@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testSecret = "test-secret-key-for-e2e"
+	testSecret = "test-secret-key-for-e2e-testing-purposes-only"
 	baseURL    = "http://localhost:9999"
 )
 

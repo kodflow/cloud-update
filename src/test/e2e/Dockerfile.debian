@@ -15,7 +15,7 @@ COPY scripts/install.sh /app/install.sh
 RUN chmod 755 /app/cloud-update /app/install.sh
 
 # Set test environment variables
-ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e-testing-purposes-only
 ENV CLOUD_UPDATE_PORT=9999
 ENV CLOUD_UPDATE_LOG_LEVEL=debug
 
