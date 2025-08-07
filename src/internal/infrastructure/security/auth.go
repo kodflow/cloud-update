@@ -19,6 +19,12 @@ type hmacAuthenticator struct {
 
 // NewHMACAuthenticator creates a new HMAC-based authenticator.
 func NewHMACAuthenticator(secret string) Authenticator {
+	if secret == "" {
+		panic("HMAC secret cannot be empty")
+	}
+	if len(secret) < 32 {
+		panic("HMAC secret must be at least 32 characters long for security")
+	}
 	return &hmacAuthenticator{
 		secret: secret,
 	}

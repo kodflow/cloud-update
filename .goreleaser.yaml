@@ -196,13 +196,16 @@ nfpms:
         
         # Create config file if it doesn't exist
         if [ ! -f /etc/cloud-update/config.env ]; then
-          cat > /etc/cloud-update/config.env << 'EOF'
+          # Generate a secure random secret
+          SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | xxd -p -c 64)
+          cat > /etc/cloud-update/config.env << EOF
         # Cloud Update Configuration
         CLOUD_UPDATE_PORT=9999
-        CLOUD_UPDATE_SECRET=CHANGE_ME_PLEASE_GENERATE_SECRET
+        CLOUD_UPDATE_SECRET=${SECRET}
         CLOUD_UPDATE_LOG_LEVEL=info
         EOF
           chmod 600 /etc/cloud-update/config.env
+          echo "Generated secure secret in /etc/cloud-update/config.env"
         fi
         
         # Reload systemd if available

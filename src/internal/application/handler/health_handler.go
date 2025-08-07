@@ -32,6 +32,8 @@ func (h *HealthHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode response: %v", err)
+		log.Printf("Failed to encode health response: %v", err)
+		// Try to send error response if headers not sent yet
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestHMACAuthenticator_ValidateSignature(t *testing.T) {
-	secret := "test-secret-key"
+	secret := "test-secret-key-that-is-at-least-32-characters-long"
 	auth := NewHMACAuthenticator(secret)
 
 	tests := []struct {
@@ -66,7 +66,7 @@ func TestHMACAuthenticator_ValidateSignature(t *testing.T) {
 }
 
 func BenchmarkHMACAuthenticator_ValidateSignature(b *testing.B) {
-	secret := "benchmark-secret-key"
+	secret := "benchmark-secret-key-that-is-at-least-32-characters"
 	auth := NewHMACAuthenticator(secret)
 	body := []byte(`{"action":"update","timestamp":1234567890}`)
 

@@ -65,7 +65,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 			method:         http.MethodPost,
 			body:           `{"action":"update","timestamp":1234567890}`,
 			authenticated:  true,
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusAccepted,
 		},
 		{
 			name:           "invalid method",
@@ -115,7 +115,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 			}
 
 			// Check if action was processed for valid requests.
-			if tt.expectedStatus == http.StatusOK {
+			if tt.expectedStatus == http.StatusAccepted {
 				// Wait a bit for the goroutine to execute.
 				time.Sleep(10 * time.Millisecond)
 				if !mockAction.wasProcessActionCalled() {
@@ -159,9 +159,9 @@ func TestWebhookHandler_ValidRequest(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.HandleWebhook(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
+	if status := rr.Code; status != http.StatusAccepted {
 		t.Errorf("Handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+			status, http.StatusAccepted)
 	}
 
 	// Wait for the goroutine to execute.
@@ -202,9 +202,9 @@ func TestWebhookHandler_ConcurrentRequests(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.HandleWebhook(rr, req)
 
-			if status := rr.Code; status != http.StatusOK {
+			if status := rr.Code; status != http.StatusAccepted {
 				t.Errorf("Request %d: wrong status code: got %v want %v",
-					id, status, http.StatusOK)
+					id, status, http.StatusAccepted)
 			}
 
 			done <- true
@@ -313,7 +313,7 @@ func TestWebhookHandler_IntegrationWithValidSignature(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.HandleWebhook(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	if status := rr.Code; status != http.StatusAccepted {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
 	}
 }

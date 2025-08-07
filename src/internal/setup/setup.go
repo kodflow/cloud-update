@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/exec"
@@ -430,6 +431,13 @@ func generateSecret() string {
 		return strings.TrimSpace(string(output))
 	}
 
-	// Fallback to less secure method
-	return fmt.Sprintf("generated-%d", os.Getpid())
+	// Fallback to Go's crypto/rand
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err == nil {
+		return fmt.Sprintf("%x", b)
+	}
+
+	// Last resort: use current time and random number
+	// This should never happen in practice
+	panic("Failed to generate secure random secret")
 }
