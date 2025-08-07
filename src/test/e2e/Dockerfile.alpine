@@ -1,22 +1,21 @@
 FROM alpine:3.19
 
-# Install runtime dependencies only
+# Install OpenRC and dependencies (OpenRC is native to Alpine)
 RUN apk add --no-cache \
     curl \
     openssl \
     bash \
-    cloud-init \
     openrc
-
-# Copy the pre-built binary and install script
-WORKDIR /app
-COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
-COPY scripts/install.sh /app/install.sh
 
 # Setup OpenRC
 RUN mkdir -p /run/openrc && \
     touch /run/openrc/softlevel && \
     rc-status || true
+
+# Copy the pre-built binary and install script
+WORKDIR /app
+COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
+COPY scripts/install.sh /app/install.sh
 
 # Make scripts executable
 RUN chmod 755 /app/cloud-update /app/install.sh
@@ -26,7 +25,7 @@ ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
 ENV CLOUD_UPDATE_PORT=9999
 ENV CLOUD_UPDATE_LOG_LEVEL=debug
 
-# Run installation (will detect OpenRC and install accordingly)
+# Run installation - this will detect OpenRC and install the service
 RUN /app/install.sh
 
 # Health check
@@ -35,5 +34,5 @@ HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
 
 EXPOSE 9999
 
-# Start the service directly (OpenRC in Docker is complex)
+# Start the service directly
 CMD ["/opt/cloud-update/cloud-update"]

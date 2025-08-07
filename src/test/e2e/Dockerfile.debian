@@ -1,12 +1,10 @@
 FROM debian:12
 
-# Install runtime dependencies - minimal for testing  
-RUN apt-get update || apt-get update || apt-get update; \
-    apt-get install -y --no-install-recommends \
+# Install dependencies (Debian can use either systemd or sysvinit)
+RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
-    || true; \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the pre-built binary and install script
 WORKDIR /app

@@ -1,7 +1,35 @@
-.PHONY: test test-unit test-e2e build clean gazelle
+.PHONY: help test test-unit test-e2e build clean gazelle
 
 # Variables
 BINARY_NAME=cloud-update
+
+# Default target - show help
+help:
+	@echo "Cloud Update - Available Commands"
+	@echo "================================="
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test              - Run all tests (unit + e2e)"
+	@echo "  make test-unit         - Run unit tests only"
+	@echo "  make test-e2e          - Run all E2E tests (Alpine, Ubuntu, Debian)"
+	@echo "  make test-e2e-alpine   - Test Alpine with OpenRC"
+	@echo "  make test-e2e-ubuntu   - Test Ubuntu with Systemd"
+	@echo "  make test-e2e-debian   - Test Debian with SysVInit"
+	@echo "  make test-e2e-clean    - Clean up E2E test environment"
+	@echo ""
+	@echo "Building:"
+	@echo "  make build             - Build binary for current platform"
+	@echo "  make gazelle           - Update BUILD files with Gazelle"
+	@echo ""
+	@echo "Cleaning:"
+	@echo "  make clean             - Clean all build artifacts and containers"
+	@echo ""
+	@echo "CI/CD:"
+	@echo "  make gha               - Simulate GitHub Actions workflow locally"
+	@echo ""
+	@echo "Help:"
+	@echo "  make help              - Show this help message"
+	@echo ""
 
 # Test command - runs both unit and e2e tests
 test: test-unit test-e2e
@@ -11,60 +39,27 @@ test-unit:
 	@echo "Running unit tests with Bazel..."
 	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run init system tests (the new focused E2E tests)
-test-init:
-	@echo "Running init system tests..."
-	@chmod +x scripts/test_init_systems.sh
-	@./scripts/test_init_systems.sh
-
-# Run all E2E tests (legacy - for all distributions)
-test-e2e-all: test-e2e-alpine test-e2e-ubuntu test-e2e-debian test-e2e-rockylinux test-e2e-fedora test-e2e-arch test-e2e-opensuse
-	@echo "✅ All distribution tests completed!"
-
-# Run E2E tests (now points to init system tests)
-test-e2e: test-init
-
-# Run E2E test for Alpine
+# Run E2E test for Alpine (OpenRC)
 test-e2e-alpine:
-	@echo "Running E2E test for Alpine..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh alpine
+	@echo "Running E2E test for Alpine (OpenRC)..."
+	@chmod +x src/test/e2e/test_distro.sh
+	@./src/test/e2e/test_distro.sh alpine
 
-# Run E2E test for Ubuntu
+# Run E2E test for Ubuntu (Systemd)
 test-e2e-ubuntu:
-	@echo "Running E2E test for Ubuntu..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh ubuntu
+	@echo "Running E2E test for Ubuntu (Systemd)..."
+	@chmod +x src/test/e2e/test_distro.sh
+	@./src/test/e2e/test_distro.sh ubuntu
 
-# Run E2E test for Debian
+# Run E2E test for Debian (SysVInit)
 test-e2e-debian:
-	@echo "Running E2E test for Debian..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh debian
+	@echo "Running E2E test for Debian (SysVInit)..."
+	@chmod +x src/test/e2e/test_distro.sh
+	@./src/test/e2e/test_distro.sh debian
 
-# Run E2E test for Rocky Linux
-test-e2e-rockylinux:
-	@echo "Running E2E test for Rocky Linux..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh rockylinux
-
-# Run E2E test for Fedora
-test-e2e-fedora:
-	@echo "Running E2E test for Fedora..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh fedora
-
-# Run E2E test for Arch Linux
-test-e2e-arch:
-	@echo "Running E2E test for Arch Linux..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh arch
-
-# Run E2E test for openSUSE
-test-e2e-opensuse:
-	@echo "Running E2E test for openSUSE..."
-	@chmod +x scripts/test_distro.sh
-	@./scripts/test_distro.sh opensuse
+# Run all E2E tests
+test-e2e: test-e2e-alpine test-e2e-ubuntu test-e2e-debian
+	@echo "✅ All E2E tests completed!"
 
 # Clean up E2E test environment
 test-e2e-clean:

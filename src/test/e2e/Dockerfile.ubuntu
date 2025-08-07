@@ -1,12 +1,10 @@
 FROM ubuntu:22.04
 
-# Install runtime dependencies - minimal for testing
-RUN apt-get update || apt-get update || apt-get update; \
-    apt-get install -y --no-install-recommends \
+# Install systemd and dependencies (systemd is native to Ubuntu)
+RUN apt-get update && apt-get install -y \
     curl \
-    ca-certificates \
-    || true; \
-    rm -rf /var/lib/apt/lists/*
+    systemd \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the pre-built binary and install script
 WORKDIR /app
@@ -21,7 +19,7 @@ ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
 ENV CLOUD_UPDATE_PORT=9999
 ENV CLOUD_UPDATE_LOG_LEVEL=debug
 
-# Run installation
+# Run installation - this will detect systemd and install the service
 RUN /app/install.sh
 
 # Health check
