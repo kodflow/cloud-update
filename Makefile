@@ -11,22 +11,11 @@ test-unit:
 	@echo "Running unit tests with Bazel..."
 	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run E2E tests (still using Docker for now)
+# Run E2E tests with Docker
 test-e2e:
-	@echo "Running E2E tests..."
-	@echo "Building Linux binary with Bazel..."
-	@bazel build //src/cmd/cloud-update:cloud-update --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
-	@mkdir -p dist/cloud-update_linux_amd64_v1
-	@cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update_linux_amd64_v1/
-	@echo "Starting E2E test environment..."
-	@docker compose -f src/test/e2e/docker-compose.yml down 2>/dev/null || true
-	@docker compose -f src/test/e2e/docker-compose.yml up -d --build alpine
-	@echo "Waiting for services to start..."
-	@sleep 10
-	@echo "Running E2E tests..."
-	@E2E_BASE_URL=http://localhost:9991 E2E_SECRET=test-secret-key-for-e2e go test -v ./src/test/e2e/...
-	@echo "Cleaning up E2E environment..."
-	@docker compose -f src/test/e2e/docker-compose.yml down
+	@echo "Running E2E tests with Docker..."
+	@chmod +x scripts/e2e_test.sh
+	@./scripts/e2e_test.sh
 
 # Build binary with Bazel for current platform
 build:

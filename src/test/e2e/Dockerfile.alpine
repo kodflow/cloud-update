@@ -8,25 +8,26 @@ RUN apk add --no-cache \
     cloud-init \
     openrc
 
-# Copy the pre-built binary from goreleaser
+# Copy the pre-built binary and install script
 WORKDIR /app
 COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
+COPY scripts/install.sh /app/install.sh
 
 # Setup OpenRC
 RUN mkdir -p /run/openrc && \
     touch /run/openrc/softlevel && \
     rc-status || true
 
-# Install the service
-RUN mkdir -p /opt/cloud-update /etc/cloud-update && \
-    cp /app/cloud-update /opt/cloud-update/ && \
-    chmod 755 /opt/cloud-update/cloud-update
+# Make scripts executable
+RUN chmod 755 /app/cloud-update /app/install.sh
 
-# Create config with test secret
-RUN echo 'CLOUD_UPDATE_PORT=9999' > /etc/cloud-update/config.env && \
-    echo 'CLOUD_UPDATE_SECRET=test-secret-key-for-e2e' >> /etc/cloud-update/config.env && \
-    echo 'CLOUD_UPDATE_LOG_LEVEL=debug' >> /etc/cloud-update/config.env && \
-    chmod 600 /etc/cloud-update/config.env
+# Set test environment variables
+ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e
+ENV CLOUD_UPDATE_PORT=9999
+ENV CLOUD_UPDATE_LOG_LEVEL=debug
+
+# Run installation (will detect OpenRC and install accordingly)
+RUN /app/install.sh
 
 # Health check
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
