@@ -113,7 +113,7 @@ jobs:
           bazel build --config=ci \
             --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
             //src/cmd/cloud-update:cloud-update \
-            --workspace_status_command="echo BUILD_VERSION ${{ needs.analyze.outputs.version }}"
+            --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
           
           # Prepare for E2E tests
           mkdir -p dist
@@ -203,7 +203,7 @@ jobs:
             bazel build --config=ci \
               --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
               //src/cmd/cloud-update:cloud-update \
-              --workspace_status_command="echo BUILD_VERSION ${{ needs.analyze.outputs.version }}"
+              --workspace_status_command="echo BUILD_VERSION ${{ needs.version.outputs.version }}"
             
             mkdir -p dist/cloud-update-${OS}-${ARCH}
             cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update* dist/cloud-update-${OS}-${ARCH}/ || \
