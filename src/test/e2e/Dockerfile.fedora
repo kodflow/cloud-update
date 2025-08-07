@@ -1,10 +1,20 @@
 FROM fedora:39
 
-# Install only essential runtime dependencies
+# Install runtime dependencies including init system
 RUN dnf install -y --setopt=install_weak_deps=False --nogpgcheck \
     curl \
     openssl \
-    && dnf clean all
+    systemd \
+    procps \
+    && dnf clean all \
+    && (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i = systemd-tmpfiles-setup.service ] || rm -f $i; done) \
+    && rm -f /lib/systemd/system/multi-user.target.wants/* \
+    && rm -f /etc/systemd/system/*.wants/* \
+    && rm -f /lib/systemd/system/local-fs.target.wants/* \
+    && rm -f /lib/systemd/system/sockets.target.wants/*udev* \
+    && rm -f /lib/systemd/system/sockets.target.wants/*initctl* \
+    && rm -f /lib/systemd/system/basic.target.wants/* \
+    && rm -f /lib/systemd/system/anaconda.target.wants/*
 
 # Copy the pre-built binary and install script
 WORKDIR /app

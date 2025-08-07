@@ -1,10 +1,19 @@
 FROM opensuse/leap:15.5
 
-# Install only essential runtime dependencies
+# Install runtime dependencies including init system
 RUN zypper install -y --no-gpg-checks \
     curl \
     openssl \
-    && zypper clean -a
+    systemd \
+    systemd-sysvinit \
+    procps \
+    && zypper clean -a \
+    && rm -f /lib/systemd/system/multi-user.target.wants/* \
+    && rm -f /etc/systemd/system/*.wants/* \
+    && rm -f /lib/systemd/system/local-fs.target.wants/* \
+    && rm -f /lib/systemd/system/sockets.target.wants/*udev* \
+    && rm -f /lib/systemd/system/sockets.target.wants/*initctl* \
+    && rm -f /lib/systemd/system/basic.target.wants/*
 
 # Copy the pre-built binary and install script
 WORKDIR /app

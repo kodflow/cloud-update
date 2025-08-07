@@ -69,15 +69,11 @@ detect_init() {
     # Detect based on available init systems
     if [ -f /sbin/openrc ] || [ -f /usr/sbin/openrc ]; then
         INIT_SYSTEM="openrc"
-    elif command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-        # Check if systemd is actually running
-        if systemctl is-system-running >/dev/null 2>&1; then
-            INIT_SYSTEM="systemd"
-        elif [ "$IN_CONTAINER" = true ]; then
-            # In container, systemd might be installed but not running
-            INIT_SYSTEM="none"
-        else
-            INIT_SYSTEM="systemd"
+    elif command -v systemctl >/dev/null 2>&1; then
+        # If systemctl exists, we can use systemd (even in containers)
+        INIT_SYSTEM="systemd"
+        if [ "$IN_CONTAINER" = true ] && ! systemctl is-system-running >/dev/null 2>&1; then
+            echo -e "${YELLOW}Systemd installed but not running (container mode)${NC}"
         fi
     elif [ -f /etc/init.d/rc ] || command -v update-rc.d >/dev/null 2>&1; then
         INIT_SYSTEM="sysvinit"
@@ -144,10 +140,16 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
     
-    # Only reload and enable if systemd is running
+    # Try to reload and enable if systemd is running
     if systemctl is-system-running >/dev/null 2>&1; then
         systemctl daemon-reload
         systemctl enable "$SERVICE_NAME"
+        echo -e "${GREEN}Service enabled in systemd${NC}"
+    elif [ "$IN_CONTAINER" = true ]; then
+        # In container, create symlink manually for systemd
+        ln -sf "/etc/systemd/system/$SERVICE_NAME.service" \
+            "/etc/systemd/system/multi-user.target.wants/$SERVICE_NAME.service" 2>/dev/null || true
+        echo -e "${YELLOW}Service configured for container systemd${NC}"
     else
         echo -e "${YELLOW}Systemd not running, service file created but not enabled${NC}"
     fi
@@ -264,45 +266,48 @@ test_installation() {
     fi
     
     # Check service installation based on init system
-    if [ "$INIT_SYSTEM" = "none" ]; then
-        if [ "$IN_CONTAINER" = true ]; then
-            echo -e "${YELLOW}⚠ Running in container without init system (expected)${NC}"
-        else
-            echo -e "${YELLOW}⚠ No init system detected${NC}"
-        fi
-    else
-        case "$INIT_SYSTEM" in
-            systemd)
-                if [ -f "/etc/systemd/system/$SERVICE_NAME.service" ]; then
-                    echo -e "${GREEN}✓ Systemd service file is installed${NC}"
-                    if systemctl is-system-running >/dev/null 2>&1; then
-                        if systemctl list-unit-files | grep -q "$SERVICE_NAME"; then
-                            echo -e "${GREEN}✓ Systemd service is enabled${NC}"
-                        fi
+    case "$INIT_SYSTEM" in
+        systemd)
+            if [ -f "/etc/systemd/system/$SERVICE_NAME.service" ]; then
+                echo -e "${GREEN}✓ Systemd service file is installed${NC}"
+                if systemctl is-system-running >/dev/null 2>&1; then
+                    if systemctl list-unit-files | grep -q "$SERVICE_NAME"; then
+                        echo -e "${GREEN}✓ Systemd service is enabled${NC}"
                     fi
-                else
-                    echo -e "${RED}✗ Systemd service file not found${NC}"
-                    return 1
+                elif [ "$IN_CONTAINER" = true ]; then
+                    if [ -L "/etc/systemd/system/multi-user.target.wants/$SERVICE_NAME.service" ]; then
+                        echo -e "${GREEN}✓ Service configured for container systemd${NC}"
+                    fi
                 fi
-                ;;
-            openrc)
-                if [ -f "/etc/init.d/$SERVICE_NAME" ]; then
-                    echo -e "${GREEN}✓ OpenRC service is installed${NC}"
-                else
-                    echo -e "${RED}✗ OpenRC service not found${NC}"
-                    return 1
-                fi
-                ;;
-            sysvinit)
-                if [ -f "/etc/init.d/$SERVICE_NAME" ]; then
-                    echo -e "${GREEN}✓ SysVInit service is installed${NC}"
-                else
-                    echo -e "${RED}✗ SysVInit service not found${NC}"
-                    return 1
-                fi
-                ;;
-        esac
-    fi
+            else
+                echo -e "${RED}✗ Systemd service file not found${NC}"
+                return 1
+            fi
+            ;;
+        openrc)
+            if [ -f "/etc/init.d/$SERVICE_NAME" ]; then
+                echo -e "${GREEN}✓ OpenRC service is installed${NC}"
+            else
+                echo -e "${RED}✗ OpenRC service not found${NC}"
+                return 1
+            fi
+            ;;
+        sysvinit)
+            if [ -f "/etc/init.d/$SERVICE_NAME" ]; then
+                echo -e "${GREEN}✓ SysVInit service is installed${NC}"
+            else
+                echo -e "${RED}✗ SysVInit service not found${NC}"
+                return 1
+            fi
+            ;;
+        none)
+            if [ "$IN_CONTAINER" = true ]; then
+                echo -e "${YELLOW}⚠ Running in container without init system${NC}"
+            else
+                echo -e "${YELLOW}⚠ No init system detected${NC}"
+            fi
+            ;;
+    esac
     
     echo -e "${GREEN}Installation test completed successfully!${NC}"
     return 0
@@ -337,11 +342,9 @@ main() {
             install_sysvinit
             ;;
         none)
+            echo -e "${YELLOW}No init system detected, skipping service installation${NC}"
             if [ "$IN_CONTAINER" = true ]; then
-                echo -e "${YELLOW}Container environment detected, skipping service installation${NC}"
                 echo -e "${YELLOW}You can run the binary directly: $INSTALL_DIR/$BINARY_NAME${NC}"
-            else
-                echo -e "${YELLOW}No init system detected, skipping service installation${NC}"
             fi
             ;;
         *)
