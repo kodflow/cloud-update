@@ -74,5 +74,5 @@ package-lock.json
 package.json
 
 # Release files
-VERSION
+/VERSION
 CHANGELOG.md
