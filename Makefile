@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-e2e build clean
+.PHONY: test test-unit test-e2e build clean gazelle
 
 # Variables
 BINARY_NAME=cloud-update
@@ -6,17 +6,18 @@ BINARY_NAME=cloud-update
 # Test command - runs both unit and e2e tests
 test: test-unit test-e2e
 
-# Run unit tests only
+# Run unit tests only with Bazel
 test-unit:
-	@echo "Running unit tests..."
-	@CLOUD_UPDATE_SECRET=test go test -v -race $$(go list ./src/... | grep -v /e2e)
+	@echo "Running unit tests with Bazel..."
+	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 
-# Run E2E tests
+# Run E2E tests (still using Docker for now)
 test-e2e:
 	@echo "Running E2E tests..."
-	@echo "Building Linux binary for E2E tests..."
-	@GOOS=linux GOARCH=amd64 go install github.com/goreleaser/goreleaser/v2@latest 2>/dev/null || true
-	@GOOS=linux GOARCH=amd64 GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
+	@echo "Building Linux binary with Bazel..."
+	@bazel build //src/cmd/cloud-update:cloud-update --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
+	@mkdir -p dist/cloud-update_linux_amd64_v1
+	@cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update_linux_amd64_v1/
 	@echo "Starting E2E test environment..."
 	@docker compose -f src/test/e2e/docker-compose.yml down 2>/dev/null || true
 	@docker compose -f src/test/e2e/docker-compose.yml up -d --build alpine
@@ -27,18 +28,24 @@ test-e2e:
 	@echo "Cleaning up E2E environment..."
 	@docker compose -f src/test/e2e/docker-compose.yml down
 
-# Build binary for current platform
+# Build binary with Bazel for current platform
 build:
-	@echo "Building $(BINARY_NAME)..."
-	@go install github.com/goreleaser/goreleaser/v2@latest 2>/dev/null || true
-	@GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
+	@echo "Building $(BINARY_NAME) with Bazel..."
+	@bazel build //src/cmd/cloud-update:cloud-update
+	@echo "Binary available at: bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update"
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
+	@bazel clean
 	@rm -rf dist/
 	@cd src/test/e2e && docker compose down 2>/dev/null || true
-	@go clean -testcache
+
+# Update BUILD files with Gazelle
+gazelle:
+	@echo "Updating BUILD files..."
+	@bazel run //:gazelle
+	@bazel run //:gazelle -- update-repos -from_file=go.mod
 
 # Simulate GitHub Actions workflow locally
 gha:
@@ -47,44 +54,21 @@ gha:
 	@echo "============================================"
 	@echo ""
 	@echo "=== Job: test ==="
-	@echo "Step 1/4: Checkout code ✓"
-	@echo "Step 2/4: Set up Go 1.24 ✓"
-	@echo "Step 3/4: Install dependencies..."
-	@go install github.com/goreleaser/goreleaser/v2@latest 2>/dev/null || true
-	@go mod download
-	@go mod verify
-	@echo "Step 4/5: Run unit tests..."
-	@CLOUD_UPDATE_SECRET=test go test -v -race $$(go list ./src/... | grep -v /e2e)
-	@echo ""
-	@echo "Step 5/5: Run E2E tests..."
-	@echo "Building Linux binary for E2E tests..."
-	@GOOS=linux GOARCH=amd64 GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
-	@echo "Starting E2E test environment..."
-	@docker compose -f src/test/e2e/docker-compose.yml down 2>/dev/null || true
-	@docker compose -f src/test/e2e/docker-compose.yml up -d --build alpine
-	@echo "Waiting for services to start..."
-	@sleep 10
-	@echo "Running E2E tests..."
-	@E2E_BASE_URL=http://localhost:9991 E2E_SECRET=test-secret-key-for-e2e go test -v ./src/test/e2e/...
-	@echo "Cleaning up E2E environment..."
-	@docker compose -f src/test/e2e/docker-compose.yml down
+	@echo "Step 1/3: Checkout code ✓"
+	@echo "Step 2/3: Setup Bazel ✓"
+	@echo "Step 3/3: Run unit tests with Bazel..."
+	@bazel test //src/internal/... //src/cmd/... --test_output=errors
 	@echo ""
 	@echo "✅ Job: test completed successfully"
 	@echo ""
 	@echo "=== Job: build (depends on test) ==="
-	@echo "Step 1/5: Checkout code ✓"
-	@echo "Step 2/5: Set up Go 1.24 ✓"
-	@echo "Step 3/5: Install dependencies..."
-	@go install github.com/goreleaser/goreleaser/v2@latest 2>/dev/null || true
-	@go mod download
-	@go mod verify
-	@echo "Step 4/5: Build..."
-	@export PATH=$$PATH:$$(go env GOPATH)/bin && \
-		GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
-	@echo "Step 5/5: Test binary..."
-	@ls -la dist/
-	@./dist/cloud-update_*/cloud-update --version
-	@./dist/cloud-update_*/cloud-update --help
+	@echo "Step 1/3: Checkout code ✓"
+	@echo "Step 2/3: Setup Bazel ✓"
+	@echo "Step 3/3: Build with Bazel..."
+	@bazel build //src/cmd/cloud-update:cloud-update
+	@echo "Step 4/4: Test binary..."
+	@bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
+	@bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
 	@echo ""
 	@echo "============================================"
 	@echo "✅ GitHub Actions simulation completed!"

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"cloud-update/src/internal/infrastructure/system"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
 const (

@@ -7,9 +7,9 @@ import (
 	"log"
 	"net/http"
 
-	"cloud-update/src/internal/domain/entity"
-	"cloud-update/src/internal/domain/service"
-	"cloud-update/src/internal/infrastructure/security"
+	"github.com/kodflow/cloud-update/src/internal/domain/entity"
+	"github.com/kodflow/cloud-update/src/internal/domain/service"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/security"
 )
 
 type WebhookHandler struct {

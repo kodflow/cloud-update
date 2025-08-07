@@ -1,0 +1,11 @@
+# Use WORKSPACE instead of MODULE.bazel for now
+common --enable_bzlmod=false
+common --enable_workspace=true
+
+# Build settings
+build --incompatible_enable_cc_toolchain_resolution
+build --java_runtime_version=remotejdk_11
+
+# Test settings
+test --test_output=errors
+test --test_summary=detailed

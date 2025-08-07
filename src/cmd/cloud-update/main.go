@@ -8,13 +8,13 @@ import (
 	"os"
 	"time"
 
-	"cloud-update/src/internal/application/handler"
-	"cloud-update/src/internal/domain/service"
-	"cloud-update/src/internal/infrastructure/config"
-	"cloud-update/src/internal/infrastructure/security"
-	"cloud-update/src/internal/infrastructure/system"
-	"cloud-update/src/internal/setup"
-	"cloud-update/src/internal/version"
+	"github.com/kodflow/cloud-update/src/internal/application/handler"
+	"github.com/kodflow/cloud-update/src/internal/domain/service"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/config"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/security"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
+	"github.com/kodflow/cloud-update/src/internal/setup"
+	"github.com/kodflow/cloud-update/src/internal/version"
 )
 
 func main() {

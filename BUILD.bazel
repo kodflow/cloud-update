@@ -1,0 +1,13 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/kodflow/cloud-update
+gazelle(name = "gazelle")
+
+# Update BUILD files with:
+# bazel run //:gazelle
+
+# Run all tests with:
+# bazel test //...
+
+# Build all binaries with:
+# bazel build //...

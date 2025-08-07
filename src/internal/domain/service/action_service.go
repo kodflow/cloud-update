@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"cloud-update/src/internal/domain/entity"
-	"cloud-update/src/internal/infrastructure/system"
+	"github.com/kodflow/cloud-update/src/internal/domain/entity"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
 type ActionService interface {

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"cloud-update/src/internal/domain/entity"
+	"github.com/kodflow/cloud-update/src/internal/domain/entity"
 )
 
 // Mock action service

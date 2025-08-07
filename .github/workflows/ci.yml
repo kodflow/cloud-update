@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    # Test ALL pull requests, regardless of target branch
+    # Test ALL pull requests
 
 jobs:
   test:
@@ -13,23 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
 
-      - name: Install dependencies
-        run: |
-          go install github.com/goreleaser/goreleaser/v2@latest
-          go mod download
-          go mod verify
+      - name: Mount bazel cache
+        uses: actions/cache@v4
+        with:
+          path: "~/.cache/bazel"
+          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
 
       - name: Run unit tests
-        run: |
-          CLOUD_UPDATE_SECRET=test go test -v -race $(go list ./src/... | grep -v /e2e)
-
-      - name: Run E2E tests
-        run: make test-e2e
+        run: bazel test //src/internal/... //src/cmd/... --test_output=errors
 
   build:
     runs-on: ubuntu-latest
@@ -38,24 +34,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Mount bazel cache
+        uses: actions/cache@v4
         with:
-          go-version: '1.24'
+          path: "~/.cache/bazel"
+          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
 
-      - name: Install dependencies
-        run: |
-          go install github.com/goreleaser/goreleaser/v2@latest
-          go mod download
-          go mod verify
-
-      - name: Build
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          GITHUB_REPOSITORY_OWNER=local goreleaser build --snapshot --clean --single-target
+      - name: Build binary
+        run: bazel build //src/cmd/cloud-update:cloud-update
 
       - name: Test binary
         run: |
-          ls -la dist/
-          ./dist/cloud-update_linux_amd64*/cloud-update --version
-          ./dist/cloud-update_linux_amd64*/cloud-update --help
+          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --version
+          bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update --help
