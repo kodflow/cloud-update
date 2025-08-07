@@ -19,11 +19,23 @@ echo -e "${YELLOW}Building Linux binary with Bazel...${NC}"
 bazel build //src/cmd/cloud-update:cloud-update --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
 
 # Prepare dist directory for Docker
+rm -rf dist/cloud-update_linux_amd64_v1
 mkdir -p dist/cloud-update_linux_amd64_v1
-cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update_linux_amd64_v1/
+
+# Find the correct binary path (Bazel creates different paths for different platforms)
+BINARY_PATH=$(find bazel-bin/src/cmd/cloud-update -name "cloud-update" -type f | grep -E "linux.*amd64" | head -1)
+if [ -z "$BINARY_PATH" ]; then
+    # Fallback to the standard path
+    BINARY_PATH="bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update"
+fi
+
+echo "Copying binary from: $BINARY_PATH"
+cp "$BINARY_PATH" dist/cloud-update_linux_amd64_v1/cloud-update
+chmod 755 dist/cloud-update_linux_amd64_v1/cloud-update
 
 # Copy install script to dist
 cp scripts/install.sh dist/cloud-update_linux_amd64_v1/
+chmod 755 dist/cloud-update_linux_amd64_v1/install.sh
 
 # Start services
 echo -e "${YELLOW}Starting Docker services...${NC}"
