@@ -1,3 +1,4 @@
+// Package handler provides HTTP handlers for the Cloud Update service.
 package handler
 
 import (
@@ -8,12 +9,15 @@ import (
 	"time"
 )
 
+// HealthHandler handles health check requests.
 type HealthHandler struct{}
 
+// NewHealthHandler creates a new health handler instance.
 func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }
 
+// HandleHealth responds to health check requests with service status.
 func (h *HealthHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

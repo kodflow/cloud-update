@@ -31,10 +31,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Tag push - use tag as version
-            VERSION="${{ github.ref_name }}"
-          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
             # Main branch - create a timestamped version
             VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
           else

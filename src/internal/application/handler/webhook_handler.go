@@ -12,11 +12,13 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/security"
 )
 
+// WebhookHandler handles webhook requests from GitHub.
 type WebhookHandler struct {
 	actionService service.ActionService
 	authenticator security.Authenticator
 }
 
+// NewWebhookHandler creates a new webhook handler with the provided dependencies.
 func NewWebhookHandler(actionService service.ActionService, auth security.Authenticator) *WebhookHandler {
 	return &WebhookHandler{
 		actionService: actionService,
@@ -24,6 +26,7 @@ func NewWebhookHandler(actionService service.ActionService, auth security.Authen
 	}
 }
 
+// HandleWebhook processes incoming webhook requests and triggers appropriate actions.
 func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
