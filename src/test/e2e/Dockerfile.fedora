@@ -1,11 +1,20 @@
 FROM fedora:39
 
-# Install runtime dependencies
-RUN dnf install -y \
+# Install runtime dependencies with retry and error handling
+RUN dnf clean all && \
+    dnf makecache --refresh && \
+    dnf install -y --setopt=install_weak_deps=False --best \
     curl \
     openssl \
     systemd \
     cloud-init \
+    || (dnf clean all && \
+        dnf makecache && \
+        dnf install -y --setopt=install_weak_deps=False \
+        curl \
+        openssl \
+        systemd \
+        cloud-init) \
     && dnf clean all
 
 # Copy the pre-built binary and install script

@@ -1,7 +1,10 @@
 FROM rockylinux:9
 
 # Install runtime dependencies
-RUN yum install -y \
+RUN yum clean all && \
+    yum makecache && \
+    yum install -y \
+    curl \
     openssl \
     systemd \
     cloud-init \
