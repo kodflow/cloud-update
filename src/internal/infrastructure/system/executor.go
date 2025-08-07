@@ -1,3 +1,4 @@
+// Package system provides system-level operations and command execution.
 package system
 
 import (
@@ -7,8 +8,10 @@ import (
 	"strings"
 )
 
+// Distribution represents a Linux distribution type.
 type Distribution string
 
+// Supported Linux distributions.
 const (
 	DistroAlpine  Distribution = "alpine"
 	DistroDebian  Distribution = "debian"
@@ -21,6 +24,7 @@ const (
 	DistroUnknown Distribution = "unknown"
 )
 
+// Executor defines the interface for system operations.
 type Executor interface {
 	RunCloudInit() error
 	Reboot() error
@@ -28,10 +32,12 @@ type Executor interface {
 	DetectDistribution() Distribution
 }
 
+// SystemExecutor implements the Executor interface for real system operations.
 type SystemExecutor struct {
 	privilegeCmd string
 }
 
+// NewSystemExecutor creates a new system executor.
 func NewSystemExecutor() Executor {
 	return &SystemExecutor{
 		privilegeCmd: detectPrivilegeCommand(),
@@ -57,7 +63,7 @@ func (e *SystemExecutor) runPrivileged(args ...string) error {
 		cmd := exec.Command(args[0], args[1:]...) // #nosec G204 - predefined system commands only
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("command failed: %v, output: %s", err, string(output))
+			return fmt.Errorf("command failed: %w, output: %s", err, string(output))
 		}
 		return nil
 	}
@@ -76,19 +82,22 @@ func (e *SystemExecutor) runPrivileged(args ...string) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("command failed: %v, output: %s", err, string(output))
+		return fmt.Errorf("command failed: %w, output: %s", err, string(output))
 	}
 	return nil
 }
 
+// RunCloudInit executes cloud-init on the system.
 func (e *SystemExecutor) RunCloudInit() error {
 	return e.runPrivileged("cloud-init", "init")
 }
 
+// Reboot schedules a system reboot.
 func (e *SystemExecutor) Reboot() error {
 	return e.runPrivileged("reboot")
 }
 
+// UpdateSystem performs a system update based on the detected distribution.
 func (e *SystemExecutor) UpdateSystem() error {
 	distro := e.DetectDistribution()
 
@@ -125,6 +134,7 @@ func (e *SystemExecutor) UpdateSystem() error {
 	}
 }
 
+// DetectDistribution detects the current Linux distribution.
 func (e *SystemExecutor) DetectDistribution() Distribution {
 	if _, err := os.Stat("/etc/alpine-release"); err == nil {
 		return DistroAlpine

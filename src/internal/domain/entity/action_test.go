@@ -96,12 +96,8 @@ func TestWebhookResponseJSON(t *testing.T) {
 func TestJob(t *testing.T) {
 	now := time.Now()
 	job := Job{
-		ID:        "job_test",
-		Action:    ActionReinit,
 		Status:    JobStatusRunning,
 		StartTime: now,
-		EndTime:   nil,
-		Error:     nil,
 	}
 
 	// Test initial state

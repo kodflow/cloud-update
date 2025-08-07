@@ -11,19 +11,23 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
+// Installation constants.
 const (
 	InstallDir = "/opt/cloud-update"
 	ConfigDir  = "/etc/cloud-update"
 	BinaryName = "cloud-update"
 )
 
+// ServiceInstaller handles the installation of cloud-update as a system service.
 type ServiceInstaller struct {
 	distro     system.Distribution
 	initSystem InitSystem
 }
 
+// InitSystem represents the type of init system.
 type InitSystem string
 
+// Init system types.
 const (
 	InitSystemd  InitSystem = "systemd"
 	InitOpenRC   InitSystem = "openrc"
@@ -32,6 +36,7 @@ const (
 	InitUnknown  InitSystem = "unknown"
 )
 
+// NewServiceInstaller creates a new service installer.
 func NewServiceInstaller() *ServiceInstaller {
 	return &ServiceInstaller{
 		distro:     detectDistribution(),
@@ -39,6 +44,7 @@ func NewServiceInstaller() *ServiceInstaller {
 	}
 }
 
+// Setup installs the service on the system.
 func (s *ServiceInstaller) Setup() error {
 	fmt.Println("🚀 Cloud Update Service Setup")
 	fmt.Printf("📦 Detected: %s with %s\n", s.distro, s.initSystem)
@@ -92,7 +98,7 @@ func (s *ServiceInstaller) createDirectories() error {
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
-			return err
+			return fmt.Errorf("failed to create directory %s: %w", dir.path, err)
 		}
 		fmt.Printf("  ✓ %s\n", dir.path)
 	}
@@ -106,7 +112,7 @@ func (s *ServiceInstaller) installBinary() error {
 	// Get current executable path
 	execPath, err := os.Executable()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
 	destPath := filepath.Join(InstallDir, BinaryName)
@@ -114,13 +120,13 @@ func (s *ServiceInstaller) installBinary() error {
 	// Copy binary
 	input, err := os.ReadFile(execPath) // #nosec G304 - execPath comes from os.Executable()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read executable: %w", err)
 	}
 
 	// Binary needs executable permissions
 	// #nosec G306 -- binary must be executable (755)
 	if err := os.WriteFile(destPath, input, 0o755); err != nil {
-		return err
+		return fmt.Errorf("failed to write binary: %w", err)
 	}
 
 	fmt.Printf("  ✓ Installed to %s\n", destPath)
@@ -148,7 +154,7 @@ func (s *ServiceInstaller) installSystemdService() error {
 	// Systemd service files need 0644 permissions
 	// #nosec G306 -- systemd requires 0644 permissions
 	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil {
-		return err
+		return fmt.Errorf("failed to write systemd service: %w", err)
 	}
 
 	// Reload systemd
@@ -166,7 +172,7 @@ func (s *ServiceInstaller) installOpenRCService() error {
 	// Init scripts need executable permissions
 	// #nosec G306 -- init scripts must be executable (755)
 	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil {
-		return err
+		return fmt.Errorf("failed to write OpenRC script: %w", err)
 	}
 
 	fmt.Printf("  ✓ Installed OpenRC service to %s\n", servicePath)
@@ -179,7 +185,7 @@ func (s *ServiceInstaller) installSysVInitService() error {
 	// Init scripts need executable permissions
 	// #nosec G306 -- init scripts must be executable (755)
 	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil {
-		return err
+		return fmt.Errorf("failed to write SysVInit script: %w", err)
 	}
 
 	// Update rc.d if available
@@ -219,12 +225,12 @@ CLOUD_UPDATE_LOG_LEVEL=info
 `, secret)
 
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
-		return err
+		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	// Set ownership to root
 	if err := os.Chown(configPath, 0, 0); err != nil {
-		return err
+		return fmt.Errorf("failed to set config ownership: %w", err)
 	}
 
 	fmt.Printf("  ✓ Created config at %s\n", configPath)
@@ -283,6 +289,7 @@ func (s *ServiceInstaller) printNextSteps() {
 	}
 }
 
+// Uninstall removes the service from the system.
 func (s *ServiceInstaller) Uninstall() error {
 	fmt.Println("🗑️  Uninstalling Cloud Update Service")
 

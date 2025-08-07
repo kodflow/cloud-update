@@ -1,3 +1,4 @@
+// Package version provides version information for the Cloud Update service.
 package version
 
 import (
@@ -5,14 +6,14 @@ import (
 	"runtime"
 )
 
-// Build information, injected at build time
+// Build information, injected at build time.
 var (
 	Version = "dev"
 	Commit  = "unknown"
 	Date    = "unknown"
 )
 
-// GetFullVersion returns the full version string
+// GetFullVersion returns the full version string.
 func GetFullVersion() string {
 	return fmt.Sprintf("cloud-update %s (%s) built on %s with %s for %s/%s",
 		Version, Commit, Date, runtime.Version(), runtime.GOOS, runtime.GOARCH)

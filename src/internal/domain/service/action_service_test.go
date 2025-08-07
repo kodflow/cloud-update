@@ -10,7 +10,7 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
-// Mock system executor for testing
+// Mock system executor for testing.
 type mockSystemExecutor struct {
 	cloudInitCalled bool
 	rebootCalled    bool

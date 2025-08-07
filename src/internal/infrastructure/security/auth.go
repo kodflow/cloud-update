@@ -1,3 +1,4 @@
+// Package security provides authentication and authorization mechanisms.
 package security
 
 import (
@@ -7,6 +8,7 @@ import (
 	"net/http"
 )
 
+// Authenticator defines the interface for request authentication.
 type Authenticator interface {
 	ValidateSignature(r *http.Request, body []byte) bool
 }
@@ -15,6 +17,7 @@ type hmacAuthenticator struct {
 	secret string
 }
 
+// NewHMACAuthenticator creates a new HMAC-based authenticator.
 func NewHMACAuthenticator(secret string) Authenticator {
 	return &hmacAuthenticator{
 		secret: secret,

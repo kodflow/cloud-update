@@ -1,3 +1,4 @@
+// Package config provides configuration management for the Cloud Update service.
 package config
 
 import (
@@ -5,12 +6,14 @@ import (
 	"os"
 )
 
+// Config represents the service configuration.
 type Config struct {
 	Port     string
 	Secret   string
 	LogLevel string
 }
 
+// Load loads the configuration from environment variables.
 func Load() *Config {
 	config := &Config{
 		Port:     getEnvOrDefault("CLOUD_UPDATE_PORT", "9999"),

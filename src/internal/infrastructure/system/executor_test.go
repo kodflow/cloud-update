@@ -82,7 +82,7 @@ func TestUpdateSystemError(t *testing.T) {
 	}
 }
 
-// Mock test helpers for CI environments
+// Mock test helpers for CI environments.
 func TestFileDetection(t *testing.T) {
 	tests := []struct {
 		name     string

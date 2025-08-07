@@ -1,3 +1,4 @@
+// Package service implements the business logic for the Cloud Update service.
 package service
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
+// ActionService defines the interface for action processing.
 type ActionService interface {
 	ProcessAction(req entity.WebhookRequest, jobID string)
 }
@@ -17,6 +19,7 @@ type actionService struct {
 	systemExecutor system.Executor
 }
 
+// NewActionService creates a new action service with the given system executor.
 func NewActionService(executor system.Executor) ActionService {
 	return &actionService{
 		systemExecutor: executor,
@@ -74,6 +77,7 @@ func (s *actionService) executeUpdate(jobID string) {
 	log.Printf("Job %s: system update completed successfully", jobID)
 }
 
+// GenerateJobID generates a unique job identifier.
 func GenerateJobID() string {
 	return fmt.Sprintf("job_%d", time.Now().Unix())
 }
