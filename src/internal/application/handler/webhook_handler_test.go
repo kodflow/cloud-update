@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -48,11 +49,14 @@ type mockAuthenticator struct {
 	shouldValidate bool
 }
 
-func (m *mockAuthenticator) ValidateSignature(r *http.Request, body []byte) bool {
+func (m *mockAuthenticator) ValidateSignature(_ *http.Request, _ []byte) bool {
 	return m.shouldValidate
 }
 
 func TestWebhookHandler_HandleWebhook(t *testing.T) {
+	// Use current timestamp for tests
+	currentTime := time.Now().Unix()
+
 	tests := []struct {
 		name           string
 		method         string
@@ -63,7 +67,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		{
 			name:           "valid request",
 			method:         http.MethodPost,
-			body:           `{"action":"update","timestamp":1234567890}`,
+			body:           fmt.Sprintf(`{"action":"update","timestamp":%d}`, currentTime),
 			authenticated:  true,
 			expectedStatus: http.StatusAccepted,
 		},
@@ -77,7 +81,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		{
 			name:           "unauthorized",
 			method:         http.MethodPost,
-			body:           `{"action":"update","timestamp":1234567890}`,
+			body:           fmt.Sprintf(`{"action":"update","timestamp":%d}`, currentTime),
 			authenticated:  false,
 			expectedStatus: http.StatusUnauthorized,
 		},
@@ -91,7 +95,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		{
 			name:           "missing action",
 			method:         http.MethodPost,
-			body:           `{"timestamp":1234567890}`,
+			body:           fmt.Sprintf(`{"timestamp":%d}`, currentTime),
 			authenticated:  true,
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -101,7 +105,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockAction := &mockActionService{}
 			mockAuth := &mockAuthenticator{shouldValidate: tt.authenticated}
-			handler := NewWebhookHandler(mockAction, mockAuth)
+			handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 			req := httptest.NewRequest(tt.method, "/webhook", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "application/json")
@@ -143,13 +147,13 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 func TestWebhookHandler_ValidRequest(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
-	handler := NewWebhookHandler(mockAction, mockAuth)
+	handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 	reqBody := entity.WebhookRequest{
 		Action:    entity.ActionUpdate,
 		Module:    "test",
 		Config:    map[string]string{"key": "value"},
-		Timestamp: 1234567890,
+		Timestamp: time.Now().Unix(),
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -183,7 +187,7 @@ func TestWebhookHandler_ValidRequest(t *testing.T) {
 func TestWebhookHandler_ConcurrentRequests(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
-	handler := NewWebhookHandler(mockAction, mockAuth)
+	handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 	// Test concurrent requests.
 	done := make(chan bool, 10)
@@ -192,7 +196,7 @@ func TestWebhookHandler_ConcurrentRequests(t *testing.T) {
 		go func(id int) {
 			reqBody := entity.WebhookRequest{
 				Action:    entity.ActionUpdate,
-				Timestamp: int64(id),
+				Timestamp: time.Now().Unix(),
 			}
 
 			body, _ := json.Marshal(reqBody)
@@ -202,9 +206,10 @@ func TestWebhookHandler_ConcurrentRequests(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.HandleWebhook(rr, req)
 
-			if status := rr.Code; status != http.StatusAccepted {
-				t.Errorf("Request %d: wrong status code: got %v want %v",
-					id, status, http.StatusAccepted)
+			// With status tracking, some requests may return 409 if a job is already running
+			if status := rr.Code; status != http.StatusAccepted && status != http.StatusConflict {
+				t.Errorf("Request %d: wrong status code: got %v want %v or %v",
+					id, status, http.StatusAccepted, http.StatusConflict)
 			}
 
 			done <- true
@@ -220,11 +225,11 @@ func TestWebhookHandler_ConcurrentRequests(t *testing.T) {
 func BenchmarkWebhookHandler(b *testing.B) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
-	handler := NewWebhookHandler(mockAction, mockAuth)
+	handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 	reqBody := entity.WebhookRequest{
 		Action:    entity.ActionUpdate,
-		Timestamp: 1234567890,
+		Timestamp: time.Now().Unix(),
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -243,7 +248,7 @@ func BenchmarkWebhookHandler(b *testing.B) {
 func TestWebhookHandler_SecurityValidation(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: false} // Signature invalide.
-	handler := NewWebhookHandler(mockAction, mockAuth)
+	handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 	// Actions sensibles qui doivent être protégées.
 	criticalActions := []entity.ActionType{
@@ -295,7 +300,7 @@ func generateTestHMACSignature(secret string, body []byte) string {
 func TestWebhookHandler_IntegrationWithValidSignature(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
-	handler := NewWebhookHandler(mockAction, mockAuth)
+	handler := NewWebhookHandlerWithStatus(mockAction, mockAuth)
 
 	secret := "test-secret"
 	reqBody := entity.WebhookRequest{

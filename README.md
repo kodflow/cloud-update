@@ -30,6 +30,7 @@ sudo ./install.sh
 ```
 
 Le script détecte automatiquement :
+
 - La distribution Linux (Alpine, Debian, Ubuntu, etc.)
 - Le système d'init (systemd, OpenRC, SysVinit)
 
@@ -122,6 +123,7 @@ curl -X POST http://localhost:9999/webhook \
 ### Actions disponibles
 
 #### Reinit (cloud-init)
+
 ```json
 {
   "action": "reinit",
@@ -130,6 +132,7 @@ curl -X POST http://localhost:9999/webhook \
 ```
 
 #### Reboot
+
 ```json
 {
   "action": "reboot",
@@ -138,6 +141,7 @@ curl -X POST http://localhost:9999/webhook \
 ```
 
 #### Update
+
 ```json
 {
   "action": "update",
@@ -156,11 +160,11 @@ curl -X POST http://localhost:9999/webhook \
 
 ### Variables d'environnement
 
-| Variable | Description | Défaut |
-|----------|-------------|---------|
-| `CLOUD_UPDATE_PORT` | Port d'écoute HTTP | `9999` |
-| `CLOUD_UPDATE_SECRET` | Clé secrète HMAC (obligatoire) | - |
-| `CLOUD_UPDATE_LOG_LEVEL` | Niveau de log | `info` |
+| Variable                 | Description                    | Défaut |
+| ------------------------ | ------------------------------ | ------ |
+| `CLOUD_UPDATE_PORT`      | Port d'écoute HTTP             | `9999` |
+| `CLOUD_UPDATE_SECRET`    | Clé secrète HMAC (obligatoire) | -      |
+| `CLOUD_UPDATE_LOG_LEVEL` | Niveau de log                  | `info` |
 
 ## Développement
 
@@ -187,6 +191,7 @@ Le service a été testé sur les distributions suivantes :
 - **Arch Linux** (systemd)
 
 Les gestionnaires de paquets suivants sont supportés pour l'action `update` :
+
 - `apk` (Alpine)
 - `apt` / `apt-get` (Debian/Ubuntu)
 - `yum` / `dnf` (RHEL/CentOS/Fedora)

@@ -78,6 +78,9 @@ func (s *actionService) executeUpdate(jobID string) {
 }
 
 // GenerateJobID generates a unique job identifier.
+// Deprecated: Use security.GenerateJobID() for secure job ID generation.
 func GenerateJobID() string {
-	return fmt.Sprintf("job_%d", time.Now().Unix())
+	// This function is kept for backward compatibility
+	// New code should use security.GenerateJobID()
+	return fmt.Sprintf("job_%d_%d", time.Now().UnixNano(), time.Now().Unix()%1000)
 }

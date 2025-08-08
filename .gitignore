@@ -7,7 +7,8 @@
 # Binary name (but not in subdirectories)
 /cloud-update
 /build/cloud-update
-/dist/cloud-update
+/dist/cloud-update*
+/src/test/e2e/cloud-update
 
 # Test binary, built with `go test -c`
 *.test
@@ -61,7 +62,7 @@ config.env
 *.temp
 *.bak
 
-# GoReleaser
+# Build artifacts
 dist/
 
 # Bazel

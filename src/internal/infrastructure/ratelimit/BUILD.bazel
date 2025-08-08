@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ratelimit",
+    srcs = ["limiter.go"],
+    importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/ratelimit",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/internal/infrastructure/logger",
+        "@org_golang_x_time//rate:go_default_library",
+    ],
+)

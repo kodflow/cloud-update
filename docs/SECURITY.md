@@ -2,7 +2,9 @@
 
 ## Vue d'ensemble
 
-Cloud Update utilise **HMAC-SHA256** pour sécuriser tous les webhooks. Cela garantit que seules les requêtes autorisées peuvent déclencher des actions sensibles comme :
+Cloud Update utilise **HMAC-SHA256** pour sécuriser tous les webhooks. Cela garantit que seules les requêtes autorisées
+peuvent déclencher des actions sensibles comme :
+
 - 🔄 **reinit** : Réinitialisation du cloud-init
 - 🔧 **update** : Mise à jour du système
 - 🔌 **reboot** : Redémarrage du serveur
@@ -61,17 +63,17 @@ def send_secure_webhook(action, secret, url="http://localhost:9999/webhook"):
         "action": action,
         "timestamp": int(time.time())
     }
-    
+
     # Convertir en JSON
     payload_json = json.dumps(payload, separators=(',', ':'))
-    
+
     # Calculer la signature HMAC
     signature = hmac.new(
         secret.encode('utf-8'),
         payload_json.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
-    
+
     # Envoyer la requête
     response = requests.post(
         url,
@@ -81,7 +83,7 @@ def send_secure_webhook(action, secret, url="http://localhost:9999/webhook"):
             'X-Cloud-Update-Signature': f'sha256={signature}'
         }
     )
-    
+
     return response
 
 # Exemple d'utilisation
@@ -118,27 +120,27 @@ func sendSecureWebhook(action, secret, url string) error {
         Action:    action,
         Timestamp: time.Now().Unix(),
     }
-    
+
     // Convertir en JSON
     jsonData, err := json.Marshal(payload)
     if err != nil {
         return err
     }
-    
+
     // Calculer la signature HMAC
     h := hmac.New(sha256.New, []byte(secret))
     h.Write(jsonData)
     signature := "sha256=" + hex.EncodeToString(h.Sum(nil))
-    
+
     // Créer la requête
     req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
     if err != nil {
         return err
     }
-    
+
     req.Header.Set("Content-Type", "application/json")
     req.Header.Set("X-Cloud-Update-Signature", signature)
-    
+
     // Envoyer la requête
     client := &http.Client{}
     resp, err := client.Do(req)
@@ -146,7 +148,7 @@ func sendSecureWebhook(action, secret, url string) error {
         return err
     }
     defer resp.Body.Close()
-    
+
     fmt.Printf("Status: %d\n", resp.StatusCode)
     return nil
 }
@@ -160,54 +162,51 @@ func main() {
 ### Node.js
 
 ```javascript
-const crypto = require('crypto');
-const http = require('http');
+const crypto = require('crypto')
+const http = require('http')
 
 function sendSecureWebhook(action, secret, url = 'http://localhost:9999/webhook') {
-    // Créer le payload
-    const payload = {
-        action: action,
-        timestamp: Math.floor(Date.now() / 1000)
-    };
-    
-    const payloadString = JSON.stringify(payload);
-    
-    // Calculer la signature HMAC
-    const signature = crypto
-        .createHmac('sha256', secret)
-        .update(payloadString)
-        .digest('hex');
-    
-    // Options de la requête
-    const options = {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Cloud-Update-Signature': `sha256=${signature}`,
-            'Content-Length': Buffer.byteLength(payloadString)
-        }
-    };
-    
-    // Envoyer la requête
-    const req = http.request(url, options, (res) => {
-        console.log(`Status: ${res.statusCode}`);
-        
-        res.on('data', (data) => {
-            console.log(`Response: ${data}`);
-        });
-    });
-    
-    req.on('error', (error) => {
-        console.error(`Error: ${error}`);
-    });
-    
-    req.write(payloadString);
-    req.end();
+  // Créer le payload
+  const payload = {
+    action: action,
+    timestamp: Math.floor(Date.now() / 1000),
+  }
+
+  const payloadString = JSON.stringify(payload)
+
+  // Calculer la signature HMAC
+  const signature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex')
+
+  // Options de la requête
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cloud-Update-Signature': `sha256=${signature}`,
+      'Content-Length': Buffer.byteLength(payloadString),
+    },
+  }
+
+  // Envoyer la requête
+  const req = http.request(url, options, (res) => {
+    console.log(`Status: ${res.statusCode}`)
+
+    res.on('data', (data) => {
+      console.log(`Response: ${data}`)
+    })
+  })
+
+  req.on('error', (error) => {
+    console.error(`Error: ${error}`)
+  })
+
+  req.write(payloadString)
+  req.end()
 }
 
 // Exemple d'utilisation
-const secret = 'votre-secret-tres-securise';
-sendSecureWebhook('update', secret);
+const secret = 'votre-secret-tres-securise'
+sendSecureWebhook('update', secret)
 ```
 
 ## 🔑 Génération du secret
@@ -232,7 +231,7 @@ make generate-secret
 1. **Secret fort** : Utilisez un secret d'au moins 32 caractères
 2. **HTTPS** : Utilisez HTTPS en production pour éviter l'interception
 3. **Rotation** : Changez le secret régulièrement
-4. **Stockage sécurisé** : 
+4. **Stockage sécurisé** :
    - Permissions 600 sur `/etc/cloud-update/config.env`
    - Utilisez un gestionnaire de secrets (Vault, AWS Secrets Manager, etc.)
 5. **Logs** : Ne loggez jamais le secret ou les signatures
@@ -260,12 +259,12 @@ echo "Signature: sha256=$SIGNATURE"
 
 ### Erreurs communes
 
-| Erreur | Cause | Solution |
-|--------|-------|----------|
-| 401 Unauthorized | Signature invalide | Vérifier le secret et le calcul de signature |
-| 401 Unauthorized | Header manquant | Ajouter `X-Cloud-Update-Signature` |
-| 400 Bad Request | JSON invalide | Vérifier le format du payload |
-| 405 Method Not Allowed | Mauvaise méthode | Utiliser POST uniquement |
+| Erreur                 | Cause              | Solution                                     |
+| ---------------------- | ------------------ | -------------------------------------------- |
+| 401 Unauthorized       | Signature invalide | Vérifier le secret et le calcul de signature |
+| 401 Unauthorized       | Header manquant    | Ajouter `X-Cloud-Update-Signature`           |
+| 400 Bad Request        | JSON invalide      | Vérifier le format du payload                |
+| 405 Method Not Allowed | Mauvaise méthode   | Utiliser POST uniquement                     |
 
 ## 🛠️ Configuration
 
@@ -308,13 +307,14 @@ journalctl -u cloud-update -f | grep "Invalid signature"
 Si vous suspectez que votre secret a été compromis :
 
 1. **Changez immédiatement le secret**
+
    ```bash
    # Générer un nouveau secret
    NEW_SECRET=$(openssl rand -hex 32)
-   
+
    # Mettre à jour la configuration
    sudo sed -i "s/CLOUD_UPDATE_SECRET=.*/CLOUD_UPDATE_SECRET=$NEW_SECRET/" /etc/cloud-update/config.env
-   
+
    # Redémarrer le service
    sudo systemctl restart cloud-update
    ```

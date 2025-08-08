@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/console"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
@@ -47,8 +48,8 @@ func NewServiceInstaller() *ServiceInstaller {
 
 // Setup installs the service on the system.
 func (s *ServiceInstaller) Setup() error {
-	fmt.Println("🚀 Cloud Update Service Setup")
-	fmt.Printf("📦 Detected: %s with %s\n", s.distro, s.initSystem)
+	console.Println("🚀 Cloud Update Service Setup")
+	console.Println(fmt.Sprintf("📦 Detected: %s with %s", s.distro, s.initSystem))
 
 	// Check if running as root
 	if os.Geteuid() != 0 && runtime.GOOS != "windows" {
@@ -80,14 +81,14 @@ func (s *ServiceInstaller) Setup() error {
 		return fmt.Errorf("failed to enable service: %w", err)
 	}
 
-	fmt.Println("✅ Setup completed successfully!")
+	console.Println("✅ Setup completed successfully!")
 	s.printNextSteps()
 
 	return nil
 }
 
 func (s *ServiceInstaller) createDirectories() error {
-	fmt.Println("📁 Creating directories...")
+	console.Println("📁 Creating directories...")
 
 	dirs := []struct {
 		path string
@@ -101,14 +102,14 @@ func (s *ServiceInstaller) createDirectories() error {
 		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir.path, err)
 		}
-		fmt.Printf("  ✓ %s\n", dir.path)
+		console.Println(fmt.Sprintf("  ✓ %s", dir.path))
 	}
 
 	return nil
 }
 
 func (s *ServiceInstaller) installBinary() error {
-	fmt.Println("📦 Installing binary...")
+	console.Println("📦 Installing binary...")
 
 	// Get current executable path
 	execPath, err := os.Executable()
@@ -119,14 +120,13 @@ func (s *ServiceInstaller) installBinary() error {
 	destPath := filepath.Join(InstallDir, BinaryName)
 
 	// Copy binary
-	input, err := os.ReadFile(execPath) // #nosec G304 - execPath comes from os.Executable()
+	input, err := os.ReadFile(execPath) //nolint:gosec // execPath comes from os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to read executable: %w", err)
 	}
 
 	// Binary needs executable permissions
-	// #nosec G306 -- binary must be executable (755)
-	if err := os.WriteFile(destPath, input, 0o755); err != nil {
+	if err := os.WriteFile(destPath, input, 0o755); err != nil { //nolint:gosec // binary must be executable
 		return fmt.Errorf("failed to write binary: %w", err)
 	}
 
@@ -135,7 +135,7 @@ func (s *ServiceInstaller) installBinary() error {
 }
 
 func (s *ServiceInstaller) installService() error {
-	fmt.Printf("🔧 Installing %s service...\n", s.initSystem)
+	console.Println(fmt.Sprintf("🔧 Installing %s service...", s.initSystem))
 
 	switch s.initSystem {
 	case InitSystemd:
@@ -153,8 +153,7 @@ func (s *ServiceInstaller) installSystemdService() error {
 	servicePath := "/etc/systemd/system/cloud-update.service"
 
 	// Systemd service files need 0644 permissions
-	// #nosec G306 -- systemd requires 0644 permissions
-	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil {
+	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write systemd service: %w", err)
 	}
 
@@ -171,8 +170,7 @@ func (s *ServiceInstaller) installOpenRCService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	// #nosec G306 -- init scripts must be executable (755)
-	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil {
+	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write OpenRC script: %w", err)
 	}
 
@@ -184,8 +182,7 @@ func (s *ServiceInstaller) installSysVInitService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	// #nosec G306 -- init scripts must be executable (755)
-	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil {
+	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write SysVInit script: %w", err)
 	}
 
@@ -201,7 +198,7 @@ func (s *ServiceInstaller) installSysVInitService() error {
 }
 
 func (s *ServiceInstaller) createConfig() error {
-	fmt.Println("⚙️  Creating configuration...")
+	console.Println("⚙️  Creating configuration...")
 
 	configPath := filepath.Join(ConfigDir, "config.env")
 
@@ -247,7 +244,7 @@ CLOUD_UPDATE_LOG_LEVEL=info
 }
 
 func (s *ServiceInstaller) enableService() error {
-	fmt.Println("🔌 Enabling service...")
+	console.Println("🔌 Enabling service...")
 
 	var cmd *exec.Cmd
 
@@ -277,7 +274,7 @@ func (s *ServiceInstaller) enableService() error {
 }
 
 func (s *ServiceInstaller) printNextSteps() {
-	fmt.Println("\n📋 Next steps:")
+	console.Println("\n📋 Next steps:")
 	fmt.Printf("1. Review configuration: %s\n", filepath.Join(ConfigDir, "config.env"))
 
 	switch s.initSystem {
@@ -298,7 +295,7 @@ func (s *ServiceInstaller) printNextSteps() {
 
 // Uninstall removes the service from the system.
 func (s *ServiceInstaller) Uninstall() error {
-	fmt.Println("🗑️  Uninstalling Cloud Update Service")
+	console.Println("🗑️  Uninstalling Cloud Update Service")
 
 	// Stop service
 	s.stopService()
@@ -319,7 +316,10 @@ func (s *ServiceInstaller) Uninstall() error {
 	// Ask about config
 	fmt.Printf("\n❓ Remove configuration directory %s? (y/N): ", ConfigDir)
 	var response string
-	_, _ = fmt.Scanln(&response)
+	if _, err := fmt.Scanln(&response); err != nil {
+		// Default to "no" if scan fails
+		response = "n"
+	}
 	if strings.EqualFold(response, "y") {
 		if err := os.RemoveAll(ConfigDir); err != nil {
 			fmt.Printf("  ⚠️  Failed to remove %s: %v\n", ConfigDir, err)
@@ -328,12 +328,12 @@ func (s *ServiceInstaller) Uninstall() error {
 		}
 	}
 
-	fmt.Println("✅ Uninstall completed")
+	console.Println("✅ Uninstall completed")
 	return nil
 }
 
 func (s *ServiceInstaller) stopService() {
-	fmt.Println("⏹️  Stopping service...")
+	console.Println("⏹️  Stopping service...")
 
 	var cmd *exec.Cmd
 	switch s.initSystem {
@@ -355,7 +355,7 @@ func (s *ServiceInstaller) stopService() {
 }
 
 func (s *ServiceInstaller) disableService() {
-	fmt.Println("🔌 Disabling service...")
+	console.Println("🔌 Disabling service...")
 
 	var cmd *exec.Cmd
 	switch s.initSystem {
@@ -379,13 +379,17 @@ func (s *ServiceInstaller) disableService() {
 }
 
 func (s *ServiceInstaller) removeServiceFiles() {
-	fmt.Println("📄 Removing service files...")
+	console.Println("📄 Removing service files...")
 
 	var servicePath string
 	switch s.initSystem {
 	case InitSystemd:
 		servicePath = "/etc/systemd/system/cloud-update.service"
-		defer func() { _ = exec.Command("systemctl", "daemon-reload").Run() }()
+		defer func() {
+			if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+				fmt.Printf("  ⚠️  Warning: failed to reload systemd: %v\n", err)
+			}
+		}()
 	case InitOpenRC, InitSysVInit:
 		servicePath = "/etc/init.d/cloud-update"
 	}
