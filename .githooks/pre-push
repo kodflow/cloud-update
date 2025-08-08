@@ -27,7 +27,7 @@ if make quality/format > /tmp/format.log 2>&1; then
     echo -e "${GREEN}✓ Code formatted${NC}"
     
     # Check if there are any changes after formatting (excluding problematic YAML)
-    CHANGED_FILES=$(git diff --name-only | grep -v -E "\.(github/workflows/ci\.yml|golangci\.yml|goreleaser\.yaml|gosec\.json|src/test/e2e/docker-compose\.yml)$" || true)
+    CHANGED_FILES=$(git diff --name-only | grep -v -E "(\.github/workflows/ci\.yml|\.golangci\.yml|\.goreleaser\.yaml|\.gosec\.json|src/test/e2e/docker-compose\.yml)$" || true)
     if [ -n "$CHANGED_FILES" ]; then
         echo -e "${RED}✗ Code formatting changed files!${NC}"
         echo -e "${YELLOW}  Please commit the formatted files before pushing:${NC}"
