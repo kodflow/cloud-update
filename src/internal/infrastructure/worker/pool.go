@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// Task represents a unit of work
+// Task represents a unit of work.
 type Task func(context.Context)
 
-// Pool manages a pool of workers
+// Pool manages a pool of workers.
 type Pool struct {
 	workers    int
 	tasks      chan Task
@@ -23,7 +23,7 @@ type Pool struct {
 	mu         sync.RWMutex
 }
 
-// NewPool creates a new worker pool
+// NewPool creates a new worker pool.
 func NewPool(workers int, maxBacklog int) *Pool {
 	ctx, cancel := context.WithCancel(context.Background())
 	
