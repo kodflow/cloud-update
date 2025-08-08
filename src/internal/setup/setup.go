@@ -102,7 +102,7 @@ func (s *ServiceInstaller) createDirectories() error {
 		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir.path, err)
 		}
-		fmt.Printf("  ✓ %s\n", dir.path)
+		console.Println(fmt.Sprintf("  ✓ %s", dir.path))
 	}
 
 	return nil
