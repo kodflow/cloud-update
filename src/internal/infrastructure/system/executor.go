@@ -61,7 +61,8 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 	// This function runs system commands with appropriate privileges
 	// Commands are predefined and not user-controlled
 	if e.privilegeCmd == "" {
-		cmd := exec.Command(args[0], args[1:]...) // #nosec G204 - predefined system commands only
+		// #nosec G204 -- predefined system commands only
+		cmd := exec.Command(args[0], args[1:]...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("command failed: %w, output: %s", err, string(output))
@@ -73,7 +74,8 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 	switch e.privilegeCmd {
 	case "doas", "sudo":
 		fullArgs := append([]string{}, args...)
-		cmd = exec.Command(e.privilegeCmd, fullArgs...) // #nosec G204 - using privilege escalation tool
+		// #nosec G204 -- using privilege escalation tool
+		cmd = exec.Command(e.privilegeCmd, fullArgs...)
 	case "su":
 		// Use proper shell escaping to prevent injection
 		escapedArgs := make([]string, len(args))
@@ -81,9 +83,11 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 			escapedArgs[i] = strconv.Quote(arg)
 		}
 		shellCmd := strings.Join(escapedArgs, " ")
-		cmd = exec.Command("su", "-c", shellCmd) // #nosec G204 - using su for privilege escalation with proper escaping
+		// #nosec G204 -- using su for privilege escalation with proper escaping
+		cmd = exec.Command("su", "-c", shellCmd)
 	default:
-		cmd = exec.Command(args[0], args[1:]...) // #nosec G204 - fallback to direct execution
+		// #nosec G204 -- fallback to direct execution
+		cmd = exec.Command(args[0], args[1:]...)
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -147,7 +151,10 @@ func (e *DefaultExecutor) DetectDistribution() Distribution {
 	}
 
 	if _, err := os.Stat("/etc/os-release"); err == nil {
-		content, _ := os.ReadFile("/etc/os-release")
+		content, err := os.ReadFile("/etc/os-release")
+		if err != nil {
+			return DistroUnknown
+		}
 		osRelease := strings.ToLower(string(content))
 
 		switch {

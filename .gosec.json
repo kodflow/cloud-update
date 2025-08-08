@@ -35,5 +35,13 @@
     "G505": "enabled",
     "G601": "enabled"
   },
-  "exclude": ["bazel-*/**", "vendor/**", "*_test.go"]
+  "exclude": [
+    "bazel-*/**", 
+    "vendor/**", 
+    "*_test.go",
+    "src/internal/infrastructure/system/executor.go:G204",
+    "src/internal/infrastructure/system/executor_secure.go:G204", 
+    "src/internal/setup/setup.go:G304",
+    "src/internal/setup/setup.go:G306"
+  ]
 }

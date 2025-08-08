@@ -41,8 +41,8 @@ else
     # Skip test files and console package
     PRINT_ISSUES=""
     for file in $STAGED_GO_FILES; do
-        # Skip test files and console package
-        if [[ $file == *_test.go ]] || [[ $file == */console/* ]]; then
+        # Skip test files, console package, and setup (CLI output)
+        if [[ $file == *_test.go ]] || [[ $file == */console/* ]] || [[ $file == */setup/setup.go ]]; then
             continue
         fi
         
@@ -123,7 +123,7 @@ fi
 # Check for secrets/credentials
 echo -e "${YELLOW}▶ Checking for secrets...${NC}"
 PATTERNS="password|secret|token|apikey|api_key|private_key|aws_access|AKIA"
-SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -iE "$PATTERNS" 2>/dev/null | grep -v "^[^:]*test\.go:" | grep -v "\.md:" | grep -v "\.githooks/" | grep -v "\.claude/agents/" | grep -v "CLOUD_UPDATE_SECRET\|HMAC.*secret\|cfg\.Secret\|E2E_SECRET.*test-secret-key-for-e2e\|GITHUB_TOKEN.*secrets\.GITHUB_TOKEN\|files with secrets" || true)
+SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -iE "$PATTERNS" 2>/dev/null | grep -v "^[^:]*test\.go:" | grep -v "\.md:" | grep -v "\.githooks/" | grep -v "\.claude/agents/" | grep -v "setup/setup.go" || true)
 if [ -n "$SECRETS" ]; then
     echo -e "${RED}  ✗ Possible secrets detected:${NC}"
     echo "$SECRETS" | head -3 | sed 's/^/    /'

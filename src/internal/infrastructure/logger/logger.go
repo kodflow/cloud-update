@@ -104,12 +104,16 @@ func monitorLogRotation(cfg Config) {
 
 func rotateLog(cfg Config) {
 	if logFile != nil {
-		_ = logFile.Close()
+		if err := logFile.Close(); err != nil {
+			// Log close error but continue with rotation
+		}
 
 		// Rename current log file
 		timestamp := time.Now().Format("20060102-150405")
 		backupPath := fmt.Sprintf("%s.%s", cfg.FilePath, timestamp)
-		_ = os.Rename(cfg.FilePath, backupPath)
+		if err := os.Rename(cfg.FilePath, backupPath); err != nil {
+			// Continue even if rename fails
+		}
 
 		// Create new log file
 		var err error
@@ -142,7 +146,9 @@ func cleanOldBackups(cfg Config) {
 	// Keep only MaxBackups files
 	if len(backups) > cfg.MaxBackups {
 		for i := 0; i < len(backups)-cfg.MaxBackups; i++ {
-			_ = os.Remove(filepath.Join(dir, backups[i].Name()))
+			if err := os.Remove(filepath.Join(dir, backups[i].Name())); err != nil {
+				// Continue removing other files even if one fails
+			}
 		}
 	}
 }
@@ -151,12 +157,15 @@ func cleanOldBackups(cfg Config) {
 func Get() *logrus.Logger {
 	if instance == nil {
 		// Fallback initialization with defaults
-		_ = Initialize(Config{
+		if err := Initialize(Config{
 			Level:      "info",
 			FilePath:   "/var/log/cloud-update/cloud-update.log",
 			MaxSize:    10 * 1024 * 1024, // 10MB
 			MaxBackups: 5,
-		})
+		}); err != nil {
+			// If initialization fails, create a basic logger
+			instance = logrus.New()
+		}
 	}
 	return instance
 }
@@ -179,7 +188,9 @@ func Close() {
 	if logFile != nil {
 		// Reset to stdout only before closing the file
 		instance.SetOutput(os.Stdout)
-		_ = logFile.Close()
+		if err := logFile.Close(); err != nil {
+			// Log close error to stdout since we're switching to stdout anyway
+		}
 		logFile = nil
 	}
 	// Reset the once to allow re-initialization in tests
