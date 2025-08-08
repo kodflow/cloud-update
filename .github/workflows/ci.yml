@@ -153,12 +153,24 @@ jobs:
           mkdir -p dist/cloud-update_linux_amd64_v1
           cp dist/cloud-update dist/cloud-update_linux_amd64_v1/cloud-update
           chmod +x dist/cloud-update_linux_amd64_v1/cloud-update
+          
+          # Also copy to the location expected by Dockerfile
+          mkdir -p src/test/e2e
+          cp dist/cloud-update src/test/e2e/cloud-update
+          chmod +x src/test/e2e/cloud-update
 
       - name: Run E2E test for ${{ matrix.init_system.name }}
         run: |
           if [ -f .env.test ]; then
+            set -o allexport
             source .env.test
+            set +o allexport
           fi
+          # Export required environment variables
+          export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_LOG_LEVEL="debug"
+          
           chmod +x src/test/e2e/test_distro.sh
           ./src/test/e2e/test_distro.sh ${{ matrix.init_system.distro }}
 
