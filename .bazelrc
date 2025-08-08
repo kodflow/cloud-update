@@ -27,9 +27,7 @@ build --disk_cache=~/.cache/bazel-disk
 build --repository_cache=~/.cache/bazel-repo
 
 # Resource options
-build --jobs=2
-build --local_resources=memory=2048
-build --local_resources=cpu=2
+build --jobs=4
 
 # Go specific
 # Race detection is handled by go test flags directly

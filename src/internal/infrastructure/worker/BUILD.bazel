@@ -5,6 +5,7 @@ go_library(
     srcs = ["pool.go"],
     importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/worker",
     visibility = ["//visibility:public"],
+    deps = ["//src/internal/infrastructure/logger"],
 )
 
 go_test(

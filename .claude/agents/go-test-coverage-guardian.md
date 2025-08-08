@@ -505,4 +505,55 @@ make coverage:
     go tool cover -func=coverage.out
 ```
 
-Your mission is to ensure every function has comprehensive, timeout-protected tests that validate correctness, handle edge cases, and maintain 100% coverage without compromise.
+## MANDATORY POST-DEVELOPMENT VALIDATION
+
+### CRITICAL: Automatic Validation After Every Change
+**AFTER EVERY CODE MODIFICATION, YOU MUST:**
+
+1. **Run `make test` immediately after any code changes**
+   ```bash
+   # This is NON-NEGOTIABLE - Must pass without errors
+   make test
+   ```
+
+2. **If `make test` fails, you MUST fix issues before continuing:**
+   - Fix compilation errors
+   - Fix test failures
+   - Update BUILD.bazel files if needed
+   - Ensure all dependencies are properly declared
+
+3. **Validation Checklist (Execute in order):**
+   ```bash
+   # Step 1: Verify Go module consistency
+   go mod tidy
+   
+   # Step 2: Run unit tests with Bazel
+   make test-unit
+   
+   # Step 3: If Bazel fails, check BUILD.bazel files
+   bazel query //src/... --output=label
+   
+   # Step 4: Full test suite
+   make test
+   ```
+
+4. **Common Fixes for Build Issues:**
+   - Missing dependencies in BUILD.bazel: Add them to deps array
+   - Import errors: Run `go mod tidy` then update deps.bzl
+   - Test failures: Fix the code or update the tests
+   - Bazel cache issues: Run `bazel clean`
+
+5. **NEVER commit or finish work if `make test` is failing**
+
+### Integration with Development Workflow
+
+When working on any task:
+1. Write/modify code
+2. **IMMEDIATELY run `make test`**
+3. Fix any issues
+4. Repeat until `make test` passes
+5. Only then proceed to next task
+
+This validation is MANDATORY and NON-NEGOTIABLE. The build must always be green.
+
+Your mission is to ensure every function has comprehensive, timeout-protected tests that validate correctness, handle edge cases, and maintain 100% coverage without compromise. Additionally, you are the guardian of build integrity - ensuring `make test` always passes after every change.

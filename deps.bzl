@@ -49,3 +49,9 @@ def go_dependencies():
         sum = "h1:0A+M6Uqn+Eje4kHMK80dtF3JCXC4ykBgQG4Fe06QRhQ=",
         version = "v0.0.0-20220715151400-c0bba94af5f8",
     )
+    go_repository(
+        name = "org_golang_x_time",
+        importpath = "golang.org/x/time",
+        sum = "h1:ScB/8o8olJvc+CQPWrK3fPZNfh7qgwCrY0zJmoEQLSE=",
+        version = "v0.12.0",
+    )

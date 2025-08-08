@@ -10,6 +10,7 @@ go_library(
         "//src/internal/domain/service",
         "//src/internal/infrastructure/config",
         "//src/internal/infrastructure/logger",
+        "//src/internal/infrastructure/ratelimit",
         "//src/internal/infrastructure/security",
         "//src/internal/infrastructure/system",
         "//src/internal/infrastructure/worker",
