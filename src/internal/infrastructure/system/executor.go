@@ -81,7 +81,7 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 			escapedArgs[i] = strconv.Quote(arg)
 		}
 		shellCmd := strings.Join(escapedArgs, " ")
-		cmd = exec.Command("su", "-c", shellCmd) //nolint:gosec // using su for privilege escalation with proper escaping
+		cmd = exec.Command("su", "-c", shellCmd) //nolint:gosec // su for privilege escalation
 	default:
 		cmd = exec.Command(args[0], args[1:]...) //nolint:gosec // fallback to direct execution
 	}

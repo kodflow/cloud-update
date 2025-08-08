@@ -184,8 +184,8 @@ func (h *WebhookHandlerWithPool) processActionWithContext(
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
-		err := fmt.Errorf("job cancelled: %w", ctx.Err())
-		logger.WithField("job_id", job.ID).Error("Job cancelled by context")
+		err := fmt.Errorf("job canceled: %w", ctx.Err())
+		logger.WithField("job_id", job.ID).Error("Job canceled by context")
 		h.jobStore.FailCurrentJob(err)
 		return
 	default:
