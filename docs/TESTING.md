@@ -7,6 +7,7 @@ Le projet cloud-update dispose d'une suite de tests complète qui peut être ex�
 ## 📋 Tests Locaux
 
 ### Tests Rapides
+
 ```bash
 # Suite complète (lint, format, security, unit tests)
 make test
@@ -19,6 +20,7 @@ make coverage
 ```
 
 ### Tests E2E
+
 ```bash
 # Tous les tests E2E (nécessite Docker)
 make test-e2e
@@ -49,6 +51,7 @@ choco install act-cli
 ### Utilisation
 
 #### Interface Interactive
+
 ```bash
 # Lance le menu interactif
 make test-github-local
@@ -58,6 +61,7 @@ make test-github-local
 ```
 
 Options disponibles :
+
 1. **Full CI Pipeline** : Exécute tous les jobs
 2. **Quality checks** : Lint, format, security uniquement
 3. **Unit tests** : Tests unitaires uniquement
@@ -69,6 +73,7 @@ Options disponibles :
 9. **PR simulation** : Simule une pull request
 
 #### Commandes Directes
+
 ```bash
 # Lister les workflows et jobs disponibles
 make test-github-list
@@ -95,6 +100,7 @@ act -P ubuntu-latest=catthehacker/ubuntu:act-latest
 ### Configuration Act
 
 Le fichier `.actrc` contient la configuration par défaut :
+
 - Images Docker optimisées pour act
 - Workflow par défaut (ci.yml)
 - Réutilisation des conteneurs pour la performance
@@ -103,6 +109,7 @@ Le fichier `.actrc` contient la configuration par défaut :
 ### Secrets et Variables
 
 Pour tester avec des secrets :
+
 ```bash
 # Créer un fichier .secrets
 echo "GITHUB_TOKEN=your-token" > .secrets
@@ -115,6 +122,7 @@ act push --secret-file .secrets
 ```
 
 Pour les variables d'environnement :
+
 ```bash
 # Créer un fichier .env
 echo "E2E_BASE_URL=http://localhost:9999" > .env
@@ -127,6 +135,7 @@ act push --env-file .env
 ## 🔍 Débuggage
 
 ### Mode Verbose
+
 ```bash
 # Act en mode verbose
 act push -v
@@ -136,6 +145,7 @@ go test -v ./src/...
 ```
 
 ### Conteneur Interactif
+
 ```bash
 # Garder le conteneur après l'exécution pour debug
 act push --rm=false
@@ -147,6 +157,7 @@ act push --container-architecture linux/amd64 -s GITHUB_TOKEN=fake
 ## 📊 Métriques de Test
 
 ### Coverage
+
 ```bash
 # Générer le rapport de coverage
 make coverage
@@ -156,6 +167,7 @@ open coverage.html
 ```
 
 ### Benchmarks
+
 ```bash
 # Lancer les benchmarks
 make bench
@@ -186,16 +198,19 @@ Le pipeline GitHub Actions comprend 6 phases :
 ## 🐛 Troubleshooting
 
 ### Act ne fonctionne pas
+
 - Vérifier que Docker est lancé
 - Vérifier l'espace disque disponible
 - Nettoyer les images Docker : `docker system prune -a`
 
 ### Tests E2E échouent
+
 - Vérifier que les ports 9991-9997 sont libres
 - Vérifier les logs Docker : `docker logs cloud-update-<distro>` (ex: `docker logs cloud-update-alpine`)
 - Reconstruire les images : `docker compose -f src/test/e2e/docker-compose.yml build --no-cache`
 
 ### GitHub Actions échoue mais pas en local
+
 - Différences d'environnement (OS, versions Go)
 - Secrets/variables manquants
 - Permissions de fichiers différentes

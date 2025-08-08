@@ -15,6 +15,7 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/application/handler"
 	"github.com/kodflow/cloud-update/src/internal/domain/service"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/config"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/console"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/ratelimit"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/security"
@@ -39,7 +40,7 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Println(version.GetFullVersion())
+		console.Println(version.GetFullVersion())
 		os.Exit(0)
 	}
 
@@ -121,7 +122,7 @@ func main() {
 	if tlsConfig.Enabled {
 		protocol = "HTTPS"
 	}
-	
+
 	logger.Infof("Starting Cloud Update service on %s (%s)", addr, protocol)
 	logger.Infof("Version: %s", version.GetFullVersion())
 	logger.Infof("Log level: %s", cfg.LogLevel)
@@ -188,25 +189,25 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Println("Cloud Update Service")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  cloud-update [options]")
-	fmt.Println()
-	fmt.Println("Options:")
-	fmt.Println("  --version     Show version information")
-	fmt.Println("  --help        Show this help message")
-	fmt.Println("  --setup       Install service on the system")
-	fmt.Println("  --uninstall   Uninstall service from the system")
-	fmt.Println()
-	fmt.Println("Environment Variables:")
-	fmt.Println("  CLOUD_UPDATE_PORT       Port to listen on (default: 9999)")
-	fmt.Println("  CLOUD_UPDATE_SECRET     HMAC secret for webhook authentication (required)")
-	fmt.Println("  CLOUD_UPDATE_LOG_LEVEL  Log level: debug, info, warn, error (default: info)")
-	fmt.Println()
-	fmt.Println("Service Control:")
-	fmt.Println("  systemctl start cloud-update    # Start service")
-	fmt.Println("  systemctl stop cloud-update     # Stop service")
-	fmt.Println("  systemctl status cloud-update   # Check status")
-	fmt.Println("  journalctl -u cloud-update -f   # View logs")
+	console.Println("Cloud Update Service")
+	console.Println()
+	console.Println("Usage:")
+	console.Println("  cloud-update [options]")
+	console.Println()
+	console.Println("Options:")
+	console.Println("  --version     Show version information")
+	console.Println("  --help        Show this help message")
+	console.Println("  --setup       Install service on the system")
+	console.Println("  --uninstall   Uninstall service from the system")
+	console.Println()
+	console.Println("Environment Variables:")
+	console.Println("  CLOUD_UPDATE_PORT       Port to listen on (default: 9999)")
+	console.Println("  CLOUD_UPDATE_SECRET     HMAC secret for webhook authentication (required)")
+	console.Println("  CLOUD_UPDATE_LOG_LEVEL  Log level: debug, info, warn, error (default: info)")
+	console.Println()
+	console.Println("Service Control:")
+	console.Println("  systemctl start cloud-update    # Start service")
+	console.Println("  systemctl stop cloud-update     # Stop service")
+	console.Println("  systemctl status cloud-update   # Check status")
+	console.Println("  journalctl -u cloud-update -f   # View logs")
 }

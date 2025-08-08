@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 	"golang.org/x/time/rate"
+
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 )
 
 // RateLimiter manages rate limiting for different identifiers (e.g., IP addresses).
@@ -33,9 +34,9 @@ type Config struct {
 // DefaultConfig returns a reasonable default configuration.
 func DefaultConfig() Config {
 	return Config{
-		RequestsPerSecond: 10,              // 10 requests per second
-		Burst:             20,              // Allow burst of 20
-		TTL:               1 * time.Hour,   // Keep limiters for 1 hour
+		RequestsPerSecond: 10,            // 10 requests per second
+		Burst:             20,            // Allow burst of 20
+		TTL:               1 * time.Hour, // Keep limiters for 1 hour
 	}
 }
 
@@ -48,10 +49,10 @@ func NewRateLimiter(cfg Config) *RateLimiter {
 		ttl:      cfg.TTL,
 		lastSeen: make(map[string]time.Time),
 	}
-	
+
 	// Start cleanup goroutine
 	go rl.cleanup()
-	
+
 	return rl
 }
 
@@ -59,24 +60,24 @@ func NewRateLimiter(cfg Config) *RateLimiter {
 func (rl *RateLimiter) Allow(identifier string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	// Get or create limiter for this identifier
 	limiter, exists := rl.limiters[identifier]
 	if !exists {
 		limiter = rate.NewLimiter(rl.limit, rl.burst)
 		rl.limiters[identifier] = limiter
 	}
-	
+
 	// Update last seen time
 	rl.lastSeen[identifier] = time.Now()
-	
+
 	// Check if request is allowed
 	allowed := limiter.Allow()
-	
+
 	if !allowed {
 		logger.WithField("identifier", identifier).Warn("Rate limit exceeded")
 	}
-	
+
 	return allowed
 }
 
@@ -94,21 +95,21 @@ func GetClientIP(r *http.Request) string {
 			}
 		}
 	}
-	
+
 	// Check X-Real-IP header
 	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
 		if parsedIP := net.ParseIP(realIP); parsedIP != nil {
 			return realIP
 		}
 	}
-	
+
 	// Fall back to RemoteAddr
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		// If splitting fails, return the whole RemoteAddr
 		return r.RemoteAddr
 	}
-	
+
 	return ip
 }
 
@@ -117,7 +118,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Extract client IP
 		clientIP := GetClientIP(r)
-		
+
 		// Check rate limit
 		if !rl.Allow(clientIP) {
 			// Rate limit exceeded
@@ -125,14 +126,14 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("X-RateLimit-Remaining", "0")
 			w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(time.Second).Unix()))
 			w.Header().Set("Retry-After", "1")
-			
+
 			http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
 			return
 		}
-		
+
 		// Add rate limit headers
 		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", int(rl.limit)))
-		
+
 		// Continue to next handler
 		next.ServeHTTP(w, r)
 	})
@@ -143,7 +144,7 @@ func (rl *RateLimiter) MiddlewareFunc(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Extract client IP
 		clientIP := GetClientIP(r)
-		
+
 		// Check rate limit
 		if !rl.Allow(clientIP) {
 			// Rate limit exceeded
@@ -151,14 +152,14 @@ func (rl *RateLimiter) MiddlewareFunc(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("X-RateLimit-Remaining", "0")
 			w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(time.Second).Unix()))
 			w.Header().Set("Retry-After", "1")
-			
+
 			http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
 			return
 		}
-		
+
 		// Add rate limit headers
 		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", int(rl.limit)))
-		
+
 		// Continue to next handler
 		next(w, r)
 	}
@@ -168,10 +169,10 @@ func (rl *RateLimiter) MiddlewareFunc(next http.HandlerFunc) http.HandlerFunc {
 func (rl *RateLimiter) cleanup() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		rl.mu.Lock()
-		
+
 		now := time.Now()
 		for identifier, lastSeen := range rl.lastSeen {
 			if now.Sub(lastSeen) > rl.ttl {
@@ -180,7 +181,7 @@ func (rl *RateLimiter) cleanup() {
 				logger.WithField("identifier", identifier).Debug("Removed inactive rate limiter")
 			}
 		}
-		
+
 		rl.mu.Unlock()
 	}
 }
@@ -189,11 +190,11 @@ func (rl *RateLimiter) cleanup() {
 func (rl *RateLimiter) Stats() map[string]interface{} {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
-	
+
 	return map[string]interface{}{
-		"active_limiters": len(rl.limiters),
+		"active_limiters":  len(rl.limiters),
 		"limit_per_second": int(rl.limit),
-		"burst_size": rl.burst,
-		"ttl_minutes": int(rl.ttl.Minutes()),
+		"burst_size":       rl.burst,
+		"ttl_minutes":      int(rl.ttl.Minutes()),
 	}
 }

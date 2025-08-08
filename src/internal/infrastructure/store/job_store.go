@@ -37,19 +37,19 @@ func (s *JobStore) GetCurrentJob() *entity.JobWithMutex {
 func (s *JobStore) GetJob(jobID string) *entity.JobWithMutex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	// Check current job
 	if s.currentJob != nil && s.currentJob.ID == jobID {
 		return s.currentJob
 	}
-	
+
 	// Check history
 	for _, job := range s.history {
 		if job.ID == jobID {
 			return job
 		}
 	}
-	
+
 	return nil
 }
 

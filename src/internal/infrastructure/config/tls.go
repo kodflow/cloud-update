@@ -112,12 +112,12 @@ func GenerateSelfSignedCert(certPath, keyPath string, hosts []string) error {
 // SetupCertificateDirectory creates the TLS certificate directory if it doesn't exist.
 func SetupCertificateDirectory() error {
 	tlsDir := "/etc/cloud-update/tls"
-	
+
 	// Create directory with secure permissions
 	if err := os.MkdirAll(tlsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create TLS directory: %w", err)
 	}
-	
+
 	// Create README for certificate placement
 	readmePath := filepath.Join(tlsDir, "README.md")
 	readme := `# TLS Certificate Directory
@@ -142,10 +142,10 @@ Enable automatic certificates with:
 - CLOUD_UPDATE_TLS_AUTO=true
 - CLOUD_UPDATE_DOMAIN=your-domain.com
 `
-	
+
 	if err := os.WriteFile(readmePath, []byte(readme), 0644); err != nil {
 		return fmt.Errorf("failed to create README: %w", err)
 	}
-	
+
 	return nil
 }
