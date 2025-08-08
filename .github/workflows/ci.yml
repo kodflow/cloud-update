@@ -29,29 +29,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for existing tags
-        id: check_tags
-        run: |
-          # Check if any tags exist
-          if [ -z "$(git tag -l)" ]; then
-            echo "No tags found, creating initial v0.0.0 tag on first commit"
-            
-            # Get the first commit in the repository
-            FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
-            echo "First commit: $FIRST_COMMIT"
-            
-            # Create v0.0.0 tag on the first commit
-            git tag v0.0.0 $FIRST_COMMIT
-            
-            echo "Created v0.0.0 tag on first commit"
-            echo "has_tags=false" >> $GITHUB_OUTPUT
-            echo "initial_tag_created=true" >> $GITHUB_OUTPUT
-          else
-            echo "Tags exist"
-            echo "has_tags=true" >> $GITHUB_OUTPUT
-            echo "initial_tag_created=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: What is next version?
         id: semver
         uses: ietf-tools/semver-action@v1
@@ -61,6 +38,7 @@ jobs:
           skipInvalidTags: true
           noVersionBumpBehavior: patch
           noNewCommitBehavior: current
+          fallbackTag: v0.0.0
           patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
 
       - name: Setup Go
@@ -232,7 +210,7 @@ jobs:
   # Final release job
   release:
     name: Tag + Publish
-    if: github.ref == 'refs/heads/main' && needs.analyze.outputs.version != needs.analyze.outputs.current
+    if: github.ref == 'refs/heads/main' && (needs.analyze.outputs.version != needs.analyze.outputs.current || needs.analyze.outputs.current == 'v0.0.0')
     needs: [analyze, build, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -275,7 +253,7 @@ jobs:
           PREVIOUS_TAG="${{ needs.analyze.outputs.current }}"
           
           # Generate changelog between tags
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ]; then
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
             CHANGELOG="Initial release"
           else
             # Get commit messages since last tag
