@@ -202,12 +202,33 @@ jobs:
             bazel build --config=ci \
               --platforms=@io_bazel_rules_go//go/toolchain:${OS}_${ARCH} \
               //src/cmd/cloud-update:cloud-update \
-              --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
+              --workspace_status_command="echo BUILD_VERSION ${{ needs.build.outputs.version }}"
             
+            # Debug: show bazel output structure
+            echo "Bazel output for ${OS}/${ARCH}:"
+            find bazel-bin/src/cmd/cloud-update -type f -name "cloud-update*" 2>/dev/null | head -5 || true
+            
+            # Create dist directory with proper permissions
             mkdir -p dist/cloud-update-${OS}-${ARCH}
-            cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update* dist/cloud-update-${OS}-${ARCH}/ || \
-            cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update-${OS}-${ARCH}/
+            
+            # Copy the binary with the appropriate extension
+            if [ "$OS" = "windows" ]; then
+              cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update.exe dist/cloud-update-${OS}-${ARCH}/cloud-update.exe 2>/dev/null || \
+              cp bazel-bin/src/cmd/cloud-update/windows_amd64_pure_stripped/cloud-update.exe dist/cloud-update-${OS}-${ARCH}/cloud-update.exe 2>/dev/null || \
+              echo "Warning: Could not find Windows binary"
+            else
+              cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update-${OS}-${ARCH}/cloud-update 2>/dev/null || \
+              cp bazel-bin/src/cmd/cloud-update/${OS}_${ARCH}_pure_stripped/cloud-update dist/cloud-update-${OS}-${ARCH}/cloud-update 2>/dev/null || \
+              echo "Warning: Could not find ${OS}/${ARCH} binary"
+            fi
+            
+            # Make the binary executable
+            chmod +x dist/cloud-update-${OS}-${ARCH}/* 2>/dev/null || true
           done
+          
+          # List the generated files for debugging
+          echo "Generated release binaries:"
+          ls -la dist/*/
 
       - name: Create tag
         run: |
