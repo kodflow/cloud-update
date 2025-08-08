@@ -121,10 +121,12 @@ func (h *WebhookHandlerWithStatus) HandleWebhook(w http.ResponseWriter, r *http.
 	if !h.jobStore.TryStartJob(job) {
 		// This shouldn't happen due to the check above, but handle it anyway
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"status":  "job_already_running",
 			"message": "Failed to start job, another job is running",
-		})
+		}); err != nil {
+			logger.WithField("error", err).Error("Failed to encode response")
+		}
 		return
 	}
 

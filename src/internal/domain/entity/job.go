@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-// JobWithMutex extends Job with thread-safe operations
+// JobWithMutex extends Job with thread-safe operations.
 type JobWithMutex struct {
 	Job
 	mu sync.RWMutex
 }
 
-// NewJob creates a new job with mutex for thread safety
+// NewJob creates a new job with mutex for thread safety.
 func NewJob(id string, action ActionType) *JobWithMutex {
 	return &JobWithMutex{
 		Job: Job{
@@ -24,14 +24,14 @@ func NewJob(id string, action ActionType) *JobWithMutex {
 	}
 }
 
-// SetRunning sets the job status to running
+// SetRunning sets the job status to running.
 func (j *JobWithMutex) SetRunning() {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	j.Status = JobStatusRunning
 }
 
-// SetCompleted sets the job status to completed
+// SetCompleted sets the job status to completed.
 func (j *JobWithMutex) SetCompleted() {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -40,7 +40,7 @@ func (j *JobWithMutex) SetCompleted() {
 	j.EndTime = &now
 }
 
-// SetFailed sets the job status to failed with an error
+// SetFailed sets the job status to failed with an error.
 func (j *JobWithMutex) SetFailed(err error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -50,14 +50,14 @@ func (j *JobWithMutex) SetFailed(err error) {
 	j.EndTime = &now
 }
 
-// GetStatus returns the current status of the job
+// GetStatus returns the current status of the job.
 func (j *JobWithMutex) GetStatus() JobStatus {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 	return j.Status
 }
 
-// IsRunning checks if the job is currently running
+// IsRunning checks if the job is currently running.
 func (j *JobWithMutex) IsRunning() bool {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
