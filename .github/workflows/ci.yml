@@ -34,12 +34,22 @@ jobs:
         run: |
           # Check if any tags exist
           if [ -z "$(git tag -l)" ]; then
-            echo "No tags found, creating initial v0.0.0 tag"
+            echo "No tags found, creating initial v0.0.0 tag on first commit"
+            
+            # Get the first commit in the repository
+            FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
+            echo "First commit: $FIRST_COMMIT"
+            
+            # Create v0.0.0 tag on the first commit
+            git tag v0.0.0 $FIRST_COMMIT
+            
+            echo "Created v0.0.0 tag on first commit"
             echo "has_tags=false" >> $GITHUB_OUTPUT
-            echo "fallback_tag=v0.0.0" >> $GITHUB_OUTPUT
+            echo "initial_tag_created=true" >> $GITHUB_OUTPUT
           else
             echo "Tags exist"
             echo "has_tags=true" >> $GITHUB_OUTPUT
+            echo "initial_tag_created=false" >> $GITHUB_OUTPUT
           fi
 
       - name: What is next version?
@@ -51,7 +61,6 @@ jobs:
           skipInvalidTags: true
           noVersionBumpBehavior: patch
           noNewCommitBehavior: current
-          fallbackTag: ${{ steps.check_tags.outputs.fallback_tag || 'v0.0.0' }}
           patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
 
       - name: Setup Go
