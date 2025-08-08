@@ -193,7 +193,7 @@ quality/format:
 	fi
 	@echo "$(YELLOW)▶ Formatting YAML/JSON/MD files...$(NC)"
 	@if command -v prettier > /dev/null 2>&1; then \
-		prettier --write "**/*.{yml,yaml,json,md}" --ignore-path .prettierignore 2>/dev/null || true; \
+		prettier --write "**/*.{yml,yaml,json,md}" --ignore-path .prettierignore 2>/dev/null || echo "$(YELLOW)Some files skipped due to syntax issues$(NC)"; \
 	fi
 	@echo "$(GREEN)✓ All code formatted$(NC)"
 
