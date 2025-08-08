@@ -2,18 +2,22 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/kodflow/cloud-update/src/internal/application/handler"
 	"github.com/kodflow/cloud-update/src/internal/domain/service"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/config"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/security"
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/worker"
 	"github.com/kodflow/cloud-update/src/internal/setup"
 	"github.com/kodflow/cloud-update/src/internal/version"
 )
@@ -58,17 +62,34 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
+	// Initialize logger
+	logCfg := logger.Config{
+		Level:      cfg.LogLevel,
+		FilePath:   "/var/log/cloud-update/cloud-update.log",
+		MaxSize:    10 * 1024 * 1024, // 10MB
+		MaxBackups: 5,
+	}
+	if err := logger.Initialize(logCfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		// Continue with stdout logging
+	}
+	defer logger.Close()
+
 	// Initialize components
 	authenticator, err := security.NewHMACAuthenticator(cfg.Secret)
 	if err != nil {
-		log.Fatalf("Failed to initialize authenticator: %v", err)
+		logger.Fatalf("Failed to initialize authenticator: %v", err)
 	}
+	// Initialize worker pool for async processing
+	workerPool := worker.NewPool(10, 100) // 10 workers, 100 task backlog
+	defer workerPool.Shutdown(30 * time.Second)
+
 	systemExecutor := system.NewSystemExecutor()
 	actionService := service.NewActionService(systemExecutor)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
-	webhookHandler := handler.NewWebhookHandler(actionService, authenticator)
+	webhookHandler := handler.NewWebhookHandlerWithPool(actionService, authenticator, workerPool)
 
 	// Setup HTTP routes
 	http.HandleFunc("/health", healthHandler.HandleHealth)
@@ -76,20 +97,38 @@ func main() {
 
 	// Start server with proper timeouts
 	addr := fmt.Sprintf(":%s", cfg.Port)
-	log.Printf("Starting Cloud Update service on %s", addr)
-	log.Printf("Version: %s", version.GetFullVersion())
-	log.Printf("Log level: %s", cfg.LogLevel)
+	logger.Infof("Starting Cloud Update service on %s", addr)
+	logger.Infof("Version: %s", version.GetFullVersion())
+	logger.Infof("Log level: %s", cfg.LogLevel)
+	logger.Infof("Log file: /var/log/cloud-update/cloud-update.log")
 
 	server := &http.Server{
-		Addr:         addr,
-		Handler:      nil, // uses DefaultServeMux
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              addr,
+		Handler:           nil, // uses DefaultServeMux
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    1 << 16, // 64KB
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	// Graceful shutdown
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		<-sigChan
+
+		logger.Info("Shutting down server...")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			logger.Errorf("Server shutdown error: %v", err)
+		}
+	}()
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Fatalf("Server failed: %v", err)
 	}
 }
 
