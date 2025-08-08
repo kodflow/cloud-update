@@ -14,7 +14,9 @@ func TestLogger_Initialize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	logFile := filepath.Join(tmpDir, "test.log")
 
@@ -50,7 +52,9 @@ func TestLogger_WithFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	logFile := filepath.Join(tmpDir, "test.log")
 
@@ -83,7 +87,9 @@ func TestLogger_InvalidLevel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	config := Config{
 		Level:    "invalid",
@@ -119,7 +125,9 @@ func TestLogger_CreateDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	// Use a nested path that doesn't exist
 	logFile := filepath.Join(tmpDir, "nested", "dir", "test.log")

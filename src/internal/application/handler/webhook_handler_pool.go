@@ -167,7 +167,9 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 }
 
 // processActionWithContext processes an action with context support.
-func (h *WebhookHandlerWithPool) processActionWithContext(ctx context.Context, req entity.WebhookRequest, job *entity.JobWithMutex) {
+func (h *WebhookHandlerWithPool) processActionWithContext(
+	ctx context.Context, req entity.WebhookRequest, job *entity.JobWithMutex,
+) {
 	// Ensure we mark the job as complete or failed when done
 	defer func() {
 		if r := recover(); r != nil {
@@ -216,7 +218,7 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 		if currentJob == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"status":  "no_job",
 				"message": "No job is currently running",
 			})
@@ -230,7 +232,7 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 	if job == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status":  "not_found",
 			"message": "Job not found",
 		})

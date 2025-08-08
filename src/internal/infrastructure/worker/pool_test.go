@@ -10,7 +10,9 @@ import (
 
 func TestWorkerPool_Submit(t *testing.T) {
 	pool := NewPool(2, 10) // 2 workers, 10 task backlog
-	defer pool.Shutdown(5 * time.Second)
+	defer func() {
+		_ = pool.Shutdown(5 * time.Second)
+	}()
 
 	var counter int32
 	var wg sync.WaitGroup
@@ -18,7 +20,7 @@ func TestWorkerPool_Submit(t *testing.T) {
 	// Submit 10 tasks
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		err := pool.Submit(func(ctx context.Context) {
+		err := pool.Submit(func(_ context.Context) {
 			atomic.AddInt32(&counter, 1)
 			time.Sleep(10 * time.Millisecond)
 			wg.Done()
@@ -40,10 +42,12 @@ func TestWorkerPool_Submit(t *testing.T) {
 
 func TestWorkerPool_QueueFull(t *testing.T) {
 	pool := NewPool(1, 2) // 1 worker, 2 task backlog
-	defer pool.Shutdown(5 * time.Second)
+	defer func() {
+		_ = pool.Shutdown(5 * time.Second)
+	}()
 
 	// Block the worker with a long-running task
-	pool.Submit(func(ctx context.Context) {
+	_ = pool.Submit(func(_ context.Context) {
 		time.Sleep(200 * time.Millisecond)
 	})
 
@@ -52,7 +56,7 @@ func TestWorkerPool_QueueFull(t *testing.T) {
 
 	// Fill the queue
 	for i := 0; i < 2; i++ {
-		err := pool.Submit(func(ctx context.Context) {
+		err := pool.Submit(func(_ context.Context) {
 			time.Sleep(10 * time.Millisecond)
 		})
 		if err != nil {
@@ -61,7 +65,7 @@ func TestWorkerPool_QueueFull(t *testing.T) {
 	}
 
 	// This should fail as the queue is full
-	err := pool.Submit(func(ctx context.Context) {})
+	err := pool.Submit(func(_ context.Context) {})
 	if err == nil {
 		t.Error("Expected error when queue is full, got nil")
 	}
@@ -76,17 +80,21 @@ func TestWorkerPool_Shutdown(t *testing.T) {
 	// Submit some tasks
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		pool.Submit(func(ctx context.Context) {
+		err := pool.Submit(func(_ context.Context) {
 			atomic.AddInt32(&completed, 1)
 			time.Sleep(50 * time.Millisecond)
 			wg.Done()
 		})
+		if err != nil {
+			t.Errorf("Failed to submit task %d: %v", i, err)
+			wg.Done()
+		}
 	}
 
 	// Shutdown with timeout
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		pool.Shutdown(200 * time.Millisecond)
+		_ = pool.Shutdown(200 * time.Millisecond)
 	}()
 
 	// Wait for tasks to complete or timeout
@@ -98,7 +106,7 @@ func TestWorkerPool_Shutdown(t *testing.T) {
 	}
 
 	// Should not accept new tasks after shutdown
-	err := pool.Submit(func(ctx context.Context) {})
+	err := pool.Submit(func(_ context.Context) {})
 	if err == nil {
 		t.Error("Expected error after shutdown, got nil")
 	}
@@ -106,7 +114,9 @@ func TestWorkerPool_Shutdown(t *testing.T) {
 
 func TestWorkerPool_ConcurrentExecution(t *testing.T) {
 	pool := NewPool(5, 100) // 5 workers
-	defer pool.Shutdown(5 * time.Second)
+	defer func() {
+		_ = pool.Shutdown(5 * time.Second)
+	}()
 
 	var maxConcurrent int32
 	var currentConcurrent int32
@@ -115,7 +125,7 @@ func TestWorkerPool_ConcurrentExecution(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
-		pool.Submit(func(ctx context.Context) {
+		err := pool.Submit(func(_ context.Context) {
 			defer wg.Done()
 
 			// Increment concurrent counter
@@ -134,6 +144,10 @@ func TestWorkerPool_ConcurrentExecution(t *testing.T) {
 			// Decrement concurrent counter
 			atomic.AddInt32(&currentConcurrent, -1)
 		})
+		if err != nil {
+			t.Errorf("Failed to submit task %d: %v", i, err)
+			wg.Done()
+		}
 	}
 
 	wg.Wait()

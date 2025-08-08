@@ -49,7 +49,7 @@ type mockAuthenticator struct {
 	shouldValidate bool
 }
 
-func (m *mockAuthenticator) ValidateSignature(r *http.Request, body []byte) bool {
+func (m *mockAuthenticator) ValidateSignature(_ *http.Request, _ []byte) bool {
 	return m.shouldValidate
 }
 

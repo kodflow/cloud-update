@@ -103,7 +103,7 @@ func (c *TLSConfig) GetTLSConfig() (*tls.Config, error) {
 }
 
 // GenerateSelfSignedCert generates a self-signed certificate for development.
-func GenerateSelfSignedCert(certPath, keyPath string, hosts []string) error {
+func GenerateSelfSignedCert(_, _ string, _ []string) error {
 	// This would use crypto/x509 and crypto/rsa to generate certificates
 	// For brevity, returning an error suggesting to use external tools
 	return fmt.Errorf("use 'openssl' or 'mkcert' to generate self-signed certificates for development")
@@ -143,7 +143,7 @@ Enable automatic certificates with:
 - CLOUD_UPDATE_DOMAIN=your-domain.com
 `
 
-	if err := os.WriteFile(readmePath, []byte(readme), 0644); err != nil {
+	if err := os.WriteFile(readmePath, []byte(readme), 0600); err != nil {
 		return fmt.Errorf("failed to create README: %w", err)
 	}
 
