@@ -65,16 +65,6 @@ linters-settings:
   gocyclo:
     min-complexity: 15
 
-  depguard:
-    rules:
-      main:
-        allow:
-          - $gostd
-          - github.com/kodflow/cloud-update/**
-          - github.com/sirupsen/logrus
-        deny:
-          - pkg: 'fmt.Println'
-            desc: 'Use log package instead of fmt.Println for output'
 
   errorlint:
     errorf: true

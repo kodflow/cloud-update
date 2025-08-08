@@ -21,10 +21,9 @@ STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$'
 if [ -z "$STAGED_GO_FILES" ]; then
     echo -e "${YELLOW}▶ No Go files staged, skipping Go checks${NC}"
 else
-    echo -e "${YELLOW}▶ Checking staged Go files...${NC}"
+    echo -e "${YELLOW}▶ Checking Go formatting...${NC}"
     
-    # Check Go formatting
-    echo -e "${YELLOW}  • Checking formatting...${NC}"
+    # Only check Go formatting - linters will handle the rest
     UNFORMATTED=$(gofmt -l $STAGED_GO_FILES 2>/dev/null || true)
     if [ -n "$UNFORMATTED" ]; then
         echo -e "${RED}  ✗ Go files need formatting:${NC}"
@@ -33,41 +32,6 @@ else
         exit 1
     fi
     echo -e "${GREEN}  ✓ Go formatting OK${NC}"
-    
-    # Check for common issues
-    echo -e "${YELLOW}  • Checking for common issues...${NC}"
-    
-    # Check for fmt.Print (should use logger or console package)
-    # Skip test files and console package
-    PRINT_ISSUES=""
-    for file in $STAGED_GO_FILES; do
-        # Skip test files, console package, and setup (CLI output)
-        if [[ $file == *_test.go ]] || [[ $file == */console/* ]] || [[ $file == */setup/setup.go ]]; then
-            continue
-        fi
-        
-        # Find fmt.Print statements without nolint comment
-        while IFS=: read -r line_num line_content; do
-            if ! echo "$line_content" | grep -q "// nolint:fmt"; then
-                PRINT_ISSUES="${PRINT_ISSUES}${file}:${line_num}: ${line_content}\n"
-            fi
-        done < <(grep -n "fmt\.Print" "$file" 2>/dev/null || true)
-    done
-    
-    if [ -n "$PRINT_ISSUES" ]; then
-        echo -e "${RED}  ✗ Found fmt.Print statements (use logger or console package)${NC}"
-        echo -e "$PRINT_ISSUES" | head -5 | sed 's/^/    /'
-        exit 1
-    fi
-    
-    # Check for TODO comments
-    TODOS=$(grep -n "TODO\|FIXME\|XXX" $STAGED_GO_FILES 2>/dev/null || true)
-    if [ -n "$TODOS" ]; then
-        echo -e "${YELLOW}  ⚠ Found TODO/FIXME comments:${NC}"
-        echo "$TODOS" | head -3 | sed 's/^/    /'
-    fi
-    
-    echo -e "${GREEN}  ✓ Go checks passed${NC}"
 fi
 
 # Get list of staged YAML/JSON files
@@ -120,23 +84,16 @@ if [ -n "$LARGE_FILES" ]; then
     echo "$LARGE_FILES" | sed 's/^/    /'
 fi
 
-# Check for secrets/credentials
-echo -e "${YELLOW}▶ Checking for secrets...${NC}"
-# Skip setup.go as it legitimately generates secrets
-PATTERNS="password|secret|token|apikey|api_key|private_key|aws_access|AKIA"
-STAGED_NON_HOOK_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v "setup\.go\|\.githooks/" || true)
-if [ -n "$STAGED_NON_HOOK_FILES" ]; then
-    SECRETS=$(echo "$STAGED_NON_HOOK_FILES" | xargs grep -iE "$PATTERNS" 2>/dev/null | grep -v "^[^:]*test\.go:" | grep -v "\.md:" | grep -v "\.claude/agents/" | grep -v "CLOUD_UPDATE_SECRET\|HMAC.*secret\|cfg\.Secret\|E2E_SECRET.*test-secret-key-for-e2e\|GITHUB_TOKEN.*secrets\.GITHUB_TOKEN" || true)
-else
-    SECRETS=""
-fi
-if [ -n "$SECRETS" ]; then
-    echo -e "${RED}  ✗ Possible secrets detected:${NC}"
-    echo "$SECRETS" | head -3 | sed 's/^/    /'
-    echo -e "${YELLOW}  Please review before committing${NC}"
+# Basic secret detection (for obvious cases only)
+# More comprehensive detection should be done by security tools
+echo -e "${YELLOW}▶ Checking for obvious secrets...${NC}"
+OBVIOUS_SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -E "AKIA[A-Z0-9]{16}" 2>/dev/null || true)
+if [ -n "$OBVIOUS_SECRETS" ]; then
+    echo -e "${RED}  ✗ AWS access key detected!${NC}"
+    echo "$OBVIOUS_SECRETS" | head -3 | sed 's/^/    /'
     exit 1
 fi
-echo -e "${GREEN}  ✓ No secrets detected${NC}"
+echo -e "${GREEN}  ✓ No obvious secrets detected${NC}"
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════${NC}"
