@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -113,7 +113,7 @@ jobs:
             --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 \
             //src/cmd/cloud-update:cloud-update \
             --workspace_status_command="echo BUILD_VERSION ${{ steps.version.outputs.version }}"
-          
+
           # Prepare for E2E tests
           mkdir -p dist
           cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update
@@ -153,7 +153,7 @@ jobs:
           mkdir -p dist/cloud-update_linux_amd64_v1
           cp dist/cloud-update dist/cloud-update_linux_amd64_v1/cloud-update
           chmod +x dist/cloud-update_linux_amd64_v1/cloud-update
-          
+
           # Also copy to the location expected by Dockerfile
           mkdir -p src/test/e2e
           cp dist/cloud-update src/test/e2e/cloud-update
@@ -170,7 +170,7 @@ jobs:
           export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
           export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
           export CLOUD_UPDATE_LOG_LEVEL="debug"
-          
+
           chmod +x src/test/e2e/test_distro.sh
           ./src/test/e2e/test_distro.sh ${{ matrix.init_system.distro }}
 
@@ -237,7 +237,7 @@ jobs:
             # Make the binary executable
             chmod +x dist/cloud-update-${OS}-${ARCH}/* 2>/dev/null || true
           done
-          
+
           # List the generated files for debugging
           echo "Generated release binaries:"
           ls -la dist/*/
@@ -247,7 +247,7 @@ jobs:
           TAG="${{ needs.build.outputs.version }}"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          
+
           if ! git rev-parse "$TAG" >/dev/null 2>&1; then
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"

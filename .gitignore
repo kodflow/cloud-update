@@ -62,7 +62,7 @@ config.env
 *.temp
 *.bak
 
-# GoReleaser
+# Build artifacts
 dist/
 
 # Bazel

@@ -35,9 +35,5 @@
     "G505": "enabled",
     "G601": "enabled"
   },
-  "exclude": [
-    "bazel-*/**",
-    "vendor/**",
-    "*_test.go"
-  ]
+  "exclude": ["bazel-*/**", "vendor/**", "*_test.go"]
 }

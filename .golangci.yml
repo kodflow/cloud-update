@@ -1,4 +1,4 @@
-version: "2"
+version: '2'
 
 linters:
   enable:
@@ -59,8 +59,8 @@ linters-settings:
     severity: medium
     confidence: medium
     excludes:
-      - G104  # Errors unhandled (covered by errcheck)
-      - G307  # Deferring a method which returns an error
+      - G104 # Errors unhandled (covered by errcheck)
+      - G307 # Deferring a method which returns an error
 
   gocyclo:
     min-complexity: 15
@@ -73,8 +73,8 @@ linters-settings:
           - github.com/kodflow/cloud-update/**
           - github.com/sirupsen/logrus
         deny:
-          - pkg: "fmt.Println"
-            desc: "Use log package instead of fmt.Println for output"
+          - pkg: 'fmt.Println'
+            desc: 'Use log package instead of fmt.Println for output'
 
   errorlint:
     errorf: true
@@ -137,12 +137,12 @@ issues:
     - bazel-cloud-update
     - vendor
     - .git
-  
+
   exclude-files:
     - ".*\\.pb\\.go$"
     - ".*\\.gen\\.go$"
     - "mock_.*\\.go$"
-    
+
   exclude-rules:
     # Exclude some linters from running on tests files
     - path: _test\.go

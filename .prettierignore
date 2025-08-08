@@ -39,6 +39,5 @@ gosec-report.json
 # Problematic YAML files (syntax issues)
 .github/workflows/ci.yml
 .golangci.yml
-.goreleaser.yaml
 .gosec.json
 src/test/e2e/docker-compose.yml
