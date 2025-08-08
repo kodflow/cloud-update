@@ -397,7 +397,10 @@ jobs:
   # Final release job for main branch
   release:
     name: Tag + Publish
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.analyze.outputs.version != needs.analyze.outputs.current || needs.analyze.outputs.current == 'v0.0.0')
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip release]')
     needs: [analyze, build, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -491,9 +494,16 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          # Create and push the version tag
-          git tag -a ${{ needs.analyze.outputs.version }} -m "Release ${{ needs.analyze.outputs.version }}"
-          git push origin ${{ needs.analyze.outputs.version }}
+          VERSION="${{ needs.analyze.outputs.version }}"
+          
+          # Check if tag already exists
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists, skipping tag creation"
+          else
+            echo "Creating new tag: $VERSION"
+            git tag -a "$VERSION" -m "Release $VERSION"
+            git push origin "$VERSION"
+          fi
 
       - name: Delete Prerelease if exists
         run: |
