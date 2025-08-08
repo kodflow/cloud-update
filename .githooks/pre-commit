@@ -84,16 +84,21 @@ if [ -n "$LARGE_FILES" ]; then
     echo "$LARGE_FILES" | sed 's/^/    /'
 fi
 
-# Basic secret detection (for obvious cases only)
-# More comprehensive detection should be done by security tools
-echo -e "${YELLOW}▶ Checking for obvious secrets...${NC}"
-OBVIOUS_SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -E "AKIA[A-Z0-9]{16}" 2>/dev/null || true)
-if [ -n "$OBVIOUS_SECRETS" ]; then
-    echo -e "${RED}  ✗ AWS access key detected!${NC}"
-    echo "$OBVIOUS_SECRETS" | head -3 | sed 's/^/    /'
-    exit 1
+# Secret detection using gitleaks
+echo -e "${YELLOW}▶ Checking for secrets...${NC}"
+if command -v gitleaks > /dev/null 2>&1; then
+    # Use gitleaks to scan staged changes only
+    if ! gitleaks protect --staged --no-banner --exit-code 0 > /tmp/gitleaks.log 2>&1; then
+        echo -e "${RED}  ✗ Secrets detected!${NC}"
+        cat /tmp/gitleaks.log | grep -E "Secret:" | head -5 | sed 's/^/    /'
+        echo -e "${YELLOW}  Run 'gitleaks protect --staged --verbose' for details${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ No secrets detected (gitleaks)${NC}"
+else
+    echo -e "${YELLOW}  ⚠ gitleaks not installed - skipping secret detection${NC}"
+    echo -e "${YELLOW}    Install with: brew install gitleaks${NC}"
 fi
-echo -e "${GREEN}  ✓ No obvious secrets detected${NC}"
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════${NC}"

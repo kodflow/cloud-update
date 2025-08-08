@@ -1,0 +1,63 @@
+# Gitleaks configuration for cloud-update
+# https://github.com/gitleaks/gitleaks
+
+title = "Cloud Update Gitleaks Config"
+
+# Allow list for legitimate patterns
+[allowlist]
+description = "Allowlist for cloud-update"
+
+# Paths to ignore
+paths = [
+    '''.gitleaks.toml''',
+    '''vendor/''',
+    '''bazel-*''',
+    '''.*_test\.go''',
+    '''.githooks/''',
+    '''.github/workflows/''',  # CI workflows often contain test secrets
+]
+
+# Patterns to allow (legitimate uses)
+regexTarget = "match"
+regexes = [
+    '''CLOUD_UPDATE_SECRET''',  # Our config env var name
+    '''test-secret-key-for-e2e-testing-purposes-only''',  # Test secret
+    '''E2E_SECRET''',  # E2E test env var name
+    '''generateSecret''',  # Function name
+    '''secret, err :=''',  # Variable assignment
+    '''# Secret key for webhook''',  # Comment
+    '''cfg\.Secret''',  # Config field
+    '''HMAC.*secret''',  # HMAC context
+    '''`, secret\)''',  # Template interpolation
+]
+
+# Additional rules can be added here
+[[rules]]
+description = "AWS Access Keys"
+id = "aws-access-key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "key"]
+
+[[rules]]
+description = "AWS Secret Key"
+id = "aws-secret-key"
+regex = '''(?i)aws(.{0,20})?(?-i)['\"]?[0-9a-zA-Z\/+]{40}['\"]?'''
+tags = ["aws", "secret"]
+
+[[rules]]
+description = "Private Key"
+id = "private-key"
+regex = '''-----BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+description = "Generic API Key"
+id = "generic-api-key"
+regex = '''(?i)(api[_\-\s]?key|apikey)['\"]?\s*[:=]\s*['\"]?([0-9a-zA-Z\-_]{20,})['\"]?'''
+tags = ["api", "key"]
+
+[[rules]]
+description = "GitHub Token"
+id = "github-token"
+regex = '''ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z]{22}_[0-9a-zA-Z]{59}'''
+tags = ["github", "token"]
