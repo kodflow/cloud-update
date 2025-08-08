@@ -4,8 +4,11 @@ package worker
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
+
+	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 )
 
 // Task represents a unit of work.
@@ -64,10 +67,22 @@ func (p *Pool) worker(id int) {
 				return
 			}
 
-			// Execute task with timeout
-			taskCtx, cancel := context.WithTimeout(p.ctx, 5*time.Minute)
-			task(taskCtx)
-			cancel()
+			// Execute task with timeout and panic recovery
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						logger.WithFields(map[string]interface{}{
+							"worker_id": id,
+							"panic":     r,
+							"stack":     string(debug.Stack()),
+						}).Error("Worker panic recovered")
+					}
+				}()
+
+				taskCtx, cancel := context.WithTimeout(p.ctx, 5*time.Minute)
+				defer cancel()
+				task(taskCtx)
+			}()
 		}
 	}
 }
