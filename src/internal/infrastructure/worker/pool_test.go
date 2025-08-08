@@ -120,7 +120,7 @@ func TestWorkerPool_ConcurrentExecution(t *testing.T) {
 
 			// Increment concurrent counter
 			current := atomic.AddInt32(&currentConcurrent, 1)
-			
+
 			// Track max concurrent
 			mu.Lock()
 			if current > maxConcurrent {

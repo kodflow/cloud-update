@@ -1,4 +1,4 @@
-// Package worker provides a worker pool for managing concurrent tasks
+// Package worker provides a worker pool for managing concurrent tasks.
 package worker
 
 import (
@@ -26,14 +26,14 @@ type Pool struct {
 // NewPool creates a new worker pool.
 func NewPool(workers int, maxBacklog int) *Pool {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	if workers <= 0 {
 		workers = 10 // Default to 10 workers (minimum 1)
 	}
 	if maxBacklog <= 0 {
 		maxBacklog = 100 // Default to 100 task backlog (minimum 1)
 	}
-	
+
 	p := &Pool{
 		workers:    workers,
 		tasks:      make(chan Task, maxBacklog),
@@ -41,20 +41,20 @@ func NewPool(workers int, maxBacklog int) *Pool {
 		cancel:     cancel,
 		maxBacklog: maxBacklog,
 	}
-	
+
 	// Start workers
 	for i := 0; i < workers; i++ {
 		p.wg.Add(1)
 		go p.worker(i)
 	}
-	
+
 	return p
 }
 
-// worker processes tasks from the queue
+// worker processes tasks from the queue.
 func (p *Pool) worker(id int) {
 	defer p.wg.Done()
-	
+
 	for {
 		select {
 		case <-p.ctx.Done():
@@ -63,7 +63,7 @@ func (p *Pool) worker(id int) {
 			if !ok {
 				return
 			}
-			
+
 			// Execute task with timeout
 			taskCtx, cancel := context.WithTimeout(p.ctx, 5*time.Minute)
 			task(taskCtx)
@@ -72,7 +72,7 @@ func (p *Pool) worker(id int) {
 	}
 }
 
-// Submit adds a task to the pool
+// Submit adds a task to the pool.
 func (p *Pool) Submit(task Task) error {
 	p.mu.RLock()
 	if p.shutdown {
@@ -80,7 +80,7 @@ func (p *Pool) Submit(task Task) error {
 		return fmt.Errorf("pool is shutdown")
 	}
 	p.mu.RUnlock()
-	
+
 	select {
 	case p.tasks <- task:
 		return nil
@@ -89,7 +89,7 @@ func (p *Pool) Submit(task Task) error {
 	}
 }
 
-// SubmitWait adds a task to the pool and waits for space if full
+// SubmitWait adds a task to the pool and waits for space if full.
 func (p *Pool) SubmitWait(task Task, timeout time.Duration) error {
 	p.mu.RLock()
 	if p.shutdown {
@@ -97,10 +97,10 @@ func (p *Pool) SubmitWait(task Task, timeout time.Duration) error {
 		return fmt.Errorf("pool is shutdown")
 	}
 	p.mu.RUnlock()
-	
+
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
-	
+
 	select {
 	case p.tasks <- task:
 		return nil
@@ -109,7 +109,7 @@ func (p *Pool) SubmitWait(task Task, timeout time.Duration) error {
 	}
 }
 
-// Shutdown gracefully shuts down the pool
+// Shutdown gracefully shuts down the pool.
 func (p *Pool) Shutdown(timeout time.Duration) error {
 	// Mark as shutdown
 	p.mu.Lock()
@@ -119,17 +119,17 @@ func (p *Pool) Shutdown(timeout time.Duration) error {
 	}
 	p.shutdown = true
 	p.mu.Unlock()
-	
+
 	// Stop accepting new tasks
 	close(p.tasks)
-	
+
 	// Wait for workers to finish or timeout
 	done := make(chan struct{})
 	go func() {
 		p.wg.Wait()
 		close(done)
 	}()
-	
+
 	select {
 	case <-done:
 		return nil
@@ -139,17 +139,17 @@ func (p *Pool) Shutdown(timeout time.Duration) error {
 	}
 }
 
-// Size returns the number of pending tasks
+// Size returns the number of pending tasks.
 func (p *Pool) Size() int {
 	return len(p.tasks)
 }
 
-// Capacity returns the maximum backlog size
+// Capacity returns the maximum backlog size.
 func (p *Pool) Capacity() int {
 	return p.maxBacklog
 }
 
-// Errors
+// Errors.
 var (
 	ErrPoolFull        = fmt.Errorf("worker pool is full")
 	ErrTimeout         = fmt.Errorf("timeout waiting for worker")
