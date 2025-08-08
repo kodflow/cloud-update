@@ -61,8 +61,7 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 	// This function runs system commands with appropriate privileges
 	// Commands are predefined and not user-controlled
 	if e.privilegeCmd == "" {
-		// #nosec G204 -- predefined system commands only
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...) //nolint:gosec // predefined system commands only
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("command failed: %w, output: %s", err, string(output))
@@ -74,8 +73,7 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 	switch e.privilegeCmd {
 	case "doas", "sudo":
 		fullArgs := append([]string{}, args...)
-		// #nosec G204 -- using privilege escalation tool
-		cmd = exec.Command(e.privilegeCmd, fullArgs...)
+		cmd = exec.Command(e.privilegeCmd, fullArgs...) //nolint:gosec // using privilege escalation tool
 	case "su":
 		// Use proper shell escaping to prevent injection
 		escapedArgs := make([]string, len(args))
@@ -83,11 +81,9 @@ func (e *DefaultExecutor) runPrivileged(args ...string) error {
 			escapedArgs[i] = strconv.Quote(arg)
 		}
 		shellCmd := strings.Join(escapedArgs, " ")
-		// #nosec G204 -- using su for privilege escalation with proper escaping
-		cmd = exec.Command("su", "-c", shellCmd)
+		cmd = exec.Command("su", "-c", shellCmd) //nolint:gosec // using su for privilege escalation with proper escaping
 	default:
-		// #nosec G204 -- fallback to direct execution
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd = exec.Command(args[0], args[1:]...) //nolint:gosec // fallback to direct execution
 	}
 
 	output, err := cmd.CombinedOutput()

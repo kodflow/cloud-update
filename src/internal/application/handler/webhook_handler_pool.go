@@ -221,7 +221,7 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 			_ = json.NewEncoder(w).Encode(map[string]string{
 				"status":  "no_job",
 				"message": "No job is currently running",
-			}) // Error already sent to client, ignore JSON encode errors
+			}) //nolint:errcheck // Error already sent to client, ignore JSON encode errors
 			return
 		}
 		jobID = currentJob.ID
@@ -235,7 +235,7 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status":  "not_found",
 			"message": "Job not found",
-		}) // Error already sent to client, ignore JSON encode errors
+		}) //nolint:errcheck // Error already sent to client, ignore JSON encode errors
 		return
 	}
 

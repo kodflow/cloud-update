@@ -120,15 +120,13 @@ func (s *ServiceInstaller) installBinary() error {
 	destPath := filepath.Join(InstallDir, BinaryName)
 
 	// Copy binary
-	// #nosec G304 -- execPath comes from os.Executable()
-	input, err := os.ReadFile(execPath)
+	input, err := os.ReadFile(execPath) //nolint:gosec // execPath comes from os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to read executable: %w", err)
 	}
 
 	// Binary needs executable permissions
-	// #nosec G306 -- binary must be executable
-	if err := os.WriteFile(destPath, input, 0o755); err != nil {
+	if err := os.WriteFile(destPath, input, 0o755); err != nil { //nolint:gosec // binary must be executable
 		return fmt.Errorf("failed to write binary: %w", err)
 	}
 
@@ -155,8 +153,7 @@ func (s *ServiceInstaller) installSystemdService() error {
 	servicePath := "/etc/systemd/system/cloud-update.service"
 
 	// Systemd service files need 0644 permissions
-	// #nosec G306 -- systemd requires 0644
-	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil {
+	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write systemd service: %w", err)
 	}
 
@@ -173,8 +170,7 @@ func (s *ServiceInstaller) installOpenRCService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	// #nosec G306 -- init scripts must be executable
-	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil {
+	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write OpenRC script: %w", err)
 	}
 
@@ -186,8 +182,7 @@ func (s *ServiceInstaller) installSysVInitService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	// #nosec G306 -- init scripts must be executable
-	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil {
+	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write SysVInit script: %w", err)
 	}
 

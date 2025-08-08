@@ -44,8 +44,7 @@ func (e *SecureExecutor) runPrivilegedSecure(ctx context.Context, command string
 		case "doas", "sudo":
 			// These tools handle arguments properly
 			fullArgs := append([]string{command}, args...)
-			// #nosec G204 -- Privilege cmd is validated
-			cmd = exec.CommandContext(cmdCtx, e.privilegeCmd, fullArgs...)
+			cmd = exec.CommandContext(cmdCtx, e.privilegeCmd, fullArgs...) //nolint:gosec // Privilege cmd is validated
 		default:
 			// For other methods, refuse to run for security
 			return fmt.Errorf("unsupported privilege escalation method: %s", e.privilegeCmd)

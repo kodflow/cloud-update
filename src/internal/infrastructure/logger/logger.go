@@ -104,12 +104,12 @@ func monitorLogRotation(cfg Config) {
 
 func rotateLog(cfg Config) {
 	if logFile != nil {
-		_ = logFile.Close() // Ignore close errors during rotation
+		_ = logFile.Close() //nolint:errcheck // Ignore close errors during rotation
 
 		// Rename current log file
 		timestamp := time.Now().Format("20060102-150405")
 		backupPath := fmt.Sprintf("%s.%s", cfg.FilePath, timestamp)
-		_ = os.Rename(cfg.FilePath, backupPath) // Continue even if rename fails
+		_ = os.Rename(cfg.FilePath, backupPath) //nolint:errcheck // Continue even if rename fails
 
 		// Create new log file
 		var err error
@@ -142,7 +142,7 @@ func cleanOldBackups(cfg Config) {
 	// Keep only MaxBackups files
 	if len(backups) > cfg.MaxBackups {
 		for i := 0; i < len(backups)-cfg.MaxBackups; i++ {
-			_ = os.Remove(filepath.Join(dir, backups[i].Name())) // Continue removing other files even if one fails
+			_ = os.Remove(filepath.Join(dir, backups[i].Name())) //nolint:errcheck // Continue on error
 		}
 	}
 }
@@ -182,7 +182,7 @@ func Close() {
 	if logFile != nil {
 		// Reset to stdout only before closing the file
 		instance.SetOutput(os.Stdout)
-		_ = logFile.Close() // Switch to stdout, ignore close errors
+		_ = logFile.Close() //nolint:errcheck // Switch to stdout, ignore close errors
 		logFile = nil
 	}
 	// Reset the once to allow re-initialization in tests
