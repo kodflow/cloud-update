@@ -101,7 +101,7 @@ run: build
 .PHONY: build
 build:
 	@echo "$(YELLOW)▶ Building $(BINARY_NAME)...$(NC)"
-	@$(BAZEL) build $(CMD_PATH) \
+	@GOPROXY=https://proxy.golang.org,direct $(BAZEL) build $(CMD_PATH) \
 		--stamp \
 		--workspace_status_command="echo BUILD_VERSION $(VERSION)"
 	@cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update ./$(BINARY_NAME)
@@ -120,9 +120,9 @@ build/all:
 .PHONY: deps
 deps:
 	@echo "$(YELLOW)▶ Downloading dependencies...$(NC)"
-	@$(GO) mod download
+	@GOPROXY=https://proxy.golang.org,direct $(GO) mod download
 	@$(GO) mod verify
-	@$(BAZEL) run //:gazelle
+	@GOPROXY=https://proxy.golang.org,direct $(BAZEL) run //:gazelle
 	@echo "$(GREEN)✓ Dependencies ready$(NC)"
 
 # ==================================================================================== #
@@ -138,7 +138,7 @@ test: quality/analyze test/unit test/e2e
 .PHONY: test/unit
 test/unit:
 	@echo "$(YELLOW)▶ Running unit tests...$(NC)"
-	@$(BAZEL) test //src/internal/... //src/cmd/... \
+	@GOPROXY=https://proxy.golang.org,direct $(BAZEL) test //src/internal/... //src/cmd/... \
 		--test_output=errors \
 		--cache_test_results=no
 	@echo "$(GREEN)✓ Unit tests passed$(NC)"
