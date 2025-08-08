@@ -163,10 +163,171 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
-  # E2E tests - run in parallel after build
+  # Prerelease job - creates draft release after build
+  prerelease:
+    name: Create Prerelease
+    if: github.event_name == 'pull_request'
+    needs: [analyze, build]
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.create_release.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: cloud-update-binaries
+          path: .dist/
+
+      - name: Create archives for prerelease
+        run: |
+          cd .dist
+          
+          # Create archives
+          for file in cloud-update-*; do
+            if [[ "$file" == *.exe ]]; then
+              # For Windows, create a zip file
+              zip "${file%.exe}.zip" "$file"
+              echo "Created ${file%.exe}.zip"
+            else
+              # For Unix systems, create tar.gz
+              tar -czf "${file}.tar.gz" "$file"
+              echo "Created ${file}.tar.gz"
+            fi
+          done
+          
+          # Generate SHA256 checksums
+          echo "Generating SHA256 checksums..."
+          sha256sum *.tar.gz *.zip 2>/dev/null > checksums.sha256 || true
+          
+          # Display checksums for verification
+          echo "SHA256 Checksums:"
+          cat checksums.sha256
+          
+          cd ..
+          
+          # List archives
+          echo "Prerelease archives:"
+          ls -la .dist/*.{tar.gz,zip} 2>/dev/null || true
+
+      - name: Generate Prerelease Notes
+        run: |
+          cat << EOF > release_notes.md
+          ## Prerelease for PR #${{ github.event.pull_request.number }}
+          
+          This is a prerelease build for testing purposes.
+          
+          ### Pull Request
+          - Title: ${{ github.event.pull_request.title }}
+          - Branch: ${{ github.head_ref }}
+          - Commit: ${{ github.sha }}
+          
+          ### Test Status
+          - Build: ✅ Completed
+          - E2E Tests: ⏳ Pending
+          
+          ### Downloads
+          Available binaries for all platforms with SHA256 checksums.
+          
+          **Note**: This is a prerelease and should not be used in production.
+          EOF
+
+      - name: Create Prerelease
+        id: create_release
+        run: |
+          RELEASE_TAG="${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}"
+          echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          
+          # Create the prerelease
+          gh release create "${RELEASE_TAG}" \
+            --title "Prerelease ${RELEASE_TAG}" \
+            --notes-file release_notes.md \
+            --draft \
+            --prerelease \
+            .dist/*.tar.gz \
+            .dist/*.zip \
+            .dist/checksums.sha256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # E2E tests - download binaries from prerelease
   e2e:
     runs-on: ubuntu-latest
+    needs: [prerelease]
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        init_system:
+          - { name: openrc, distro: alpine }
+          - { name: systemd, distro: ubuntu }
+          - { name: sysvinit, distro: debian }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download binary from prerelease
+        run: |
+          # Download the Linux AMD64 binary from the prerelease
+          RELEASE_TAG="${{ needs.prerelease.outputs.release_tag }}"
+          echo "Downloading binary from prerelease: ${RELEASE_TAG}"
+          
+          # Create directory for binary
+          mkdir -p .dist
+          
+          # Download the Linux AMD64 archive
+          gh release download "${RELEASE_TAG}" \
+            --pattern "cloud-update-linux-amd64.tar.gz" \
+            --dir .dist
+          
+          # Extract the binary
+          cd .dist
+          tar -xzf cloud-update-linux-amd64.tar.gz
+          chmod +x cloud-update-linux-amd64
+          cd ..
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare binary for container
+        run: |
+          # The E2E test script expects the binary in a specific location
+          mkdir -p dist/cloud-update_linux_amd64_v1
+          cp .dist/cloud-update-linux-amd64 dist/cloud-update_linux_amd64_v1/cloud-update
+          chmod +x dist/cloud-update_linux_amd64_v1/cloud-update
+
+          # Also copy to the location expected by Dockerfile
+          mkdir -p src/test/e2e
+          cp .dist/cloud-update-linux-amd64 src/test/e2e/cloud-update
+          chmod +x src/test/e2e/cloud-update
+
+      - name: Run E2E test for ${{ matrix.init_system.name }}
+        run: |
+          if [ -f .env.test ]; then
+            set -o allexport
+            source .env.test
+            set +o allexport
+          fi
+          # Export required environment variables
+          export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+          export CLOUD_UPDATE_LOG_LEVEL="debug"
+
+          chmod +x src/test/e2e/test_distro.sh
+          ./src/test/e2e/test_distro.sh ${{ matrix.init_system.distro }}
+
+      - name: Clean up containers
+        if: always()
+        run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
+
+  # E2E tests for main branch (uses artifacts)
+  e2e-main:
+    runs-on: ubuntu-latest
     needs: build
+    if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -215,121 +376,11 @@ jobs:
         if: always()
         run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
 
-  # Prerelease job for Pull Requests
-  prerelease:
-    name: Create Prerelease
-    if: github.event_name == 'pull_request'
-    needs: [analyze, build, e2e]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download binaries
-        uses: actions/download-artifact@v4
-        with:
-          name: cloud-update-binaries
-          path: .dist/
-
-      - name: Create archives for release
-        run: |
-          cd .dist
-          
-          # Create archives
-          for file in cloud-update-*; do
-            if [[ "$file" == *.exe ]]; then
-              # For Windows, create a zip file
-              zip "${file%.exe}.zip" "$file"
-              echo "Created ${file%.exe}.zip"
-            else
-              # For Unix systems, create tar.gz
-              tar -czf "${file}.tar.gz" "$file"
-              echo "Created ${file}.tar.gz"
-            fi
-          done
-          
-          # Generate SHA256 checksums
-          echo "Generating SHA256 checksums..."
-          sha256sum *.tar.gz *.zip 2>/dev/null > checksums.sha256 || true
-          
-          # Display checksums for verification
-          echo "SHA256 Checksums:"
-          cat checksums.sha256
-          
-          cd ..
-          
-          # List archives
-          echo "Release archives:"
-          ls -la .dist/*.{tar.gz,zip} 2>/dev/null || true
-
-      - name: Generate Release Notes
-        id: release_notes
-        run: |
-          # Get the current and previous tags
-          CURRENT_TAG="${{ needs.analyze.outputs.version }}"
-          PREVIOUS_TAG="${{ needs.analyze.outputs.current }}"
-          
-          # Generate changelog between tags
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
-            CHANGELOG="Initial release"
-          else
-            # Get commit messages since last tag
-            CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "^- Merge" || echo "")
-            
-            # Categorize changes
-            FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature):" | sed 's/^- feat:/- /' | sed 's/^- feature:/- /' || echo "")
-            FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix):" | sed 's/^- fix:/- /' | sed 's/^- bugfix:/- /' || echo "")
-            IMPROVEMENTS=$(echo "$CHANGELOG" | grep -E "^- (perf|improve|enhancement):" | sed 's/^- [^:]*:/- /' || echo "")
-            OTHER=$(echo "$CHANGELOG" | grep -vE "^- (feat|feature|fix|bugfix|perf|improve|enhancement):" || echo "")
-          fi
-          
-          # Format release notes
-          cat << EOF > release_notes.md
-          ## Release ${CURRENT_TAG}
-          
-          ${FEATURES:+### 🚀 Features
-          $FEATURES
-          }
-          ${FIXES:+### 🐛 Bug Fixes
-          $FIXES
-          }
-          ${IMPROVEMENTS:+### ⚡ Performance & Improvements
-          $IMPROVEMENTS
-          }
-          ${OTHER:+### 🔧 Other Changes
-          $OTHER
-          }
-          
-          **Full Changelog**: ${PREVIOUS_TAG:+https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}}
-          EOF
-          
-          echo "Release notes generated for ${CURRENT_TAG}"
-
-      - name: Create Prerelease (No Tag)
-        uses: ncipollo/release-action@v1
-        with:
-          name: Prerelease ${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}
-          tag: ${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}
-          bodyFile: release_notes.md
-          artifacts: |
-            .dist/*.tar.gz
-            .dist/*.zip
-            .dist/checksums.sha256
-          draft: true
-          prerelease: true
-          makeLatest: false
-          allowUpdates: true
-          skipIfReleaseExists: false
-          replacesArtifacts: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   # Final release job for main branch
   release:
     name: Tag + Publish
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.analyze.outputs.version != needs.analyze.outputs.current || needs.analyze.outputs.current == 'v0.0.0')
-    needs: [analyze, build, e2e]
+    needs: [analyze, build, e2e-main]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
