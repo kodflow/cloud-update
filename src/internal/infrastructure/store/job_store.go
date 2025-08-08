@@ -34,7 +34,7 @@ func (s *JobStore) GetCurrentJob() *entity.JobWithMutex {
 }
 
 // TryStartJob attempts to start a new job.
-// Returns false if another job is already running
+// Returns false if another job is already running.
 func (s *JobStore) TryStartJob(job *entity.JobWithMutex) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -62,7 +62,7 @@ func (s *JobStore) CompleteCurrentJob() {
 	}
 }
 
-// FailCurrentJob marks the current job as failed
+// FailCurrentJob marks the current job as failed.
 func (s *JobStore) FailCurrentJob(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -74,17 +74,17 @@ func (s *JobStore) FailCurrentJob(err error) {
 	}
 }
 
-// addToHistory adds a job to the history
+// addToHistory adds a job to the history.
 func (s *JobStore) addToHistory(job *entity.JobWithMutex) {
 	s.history = append(s.history, job)
-	
+
 	// Trim history if it exceeds max size
 	if len(s.history) > s.maxHistory {
 		s.history = s.history[len(s.history)-s.maxHistory:]
 	}
 }
 
-// GetJobByID retrieves a job by its ID from current or history
+// GetJobByID retrieves a job by its ID from current or history.
 func (s *JobStore) GetJobByID(id string) *entity.JobWithMutex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -104,7 +104,7 @@ func (s *JobStore) GetJobByID(id string) *entity.JobWithMutex {
 	return nil
 }
 
-// CleanupOldJobs removes jobs older than the specified duration
+// CleanupOldJobs removes jobs older than the specified duration.
 func (s *JobStore) CleanupOldJobs(maxAge time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -10,13 +10,13 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/logger"
 )
 
-// SecureExecutor implements the Executor interface with enhanced security
+// SecureExecutor implements the Executor interface with enhanced security.
 type SecureExecutor struct {
 	privilegeCmd string
 	timeout      time.Duration
 }
 
-// NewSecureExecutor creates a new secure system executor
+// NewSecureExecutor creates a new secure system executor.
 func NewSecureExecutor() Executor {
 	return &SecureExecutor{
 		privilegeCmd: detectPrivilegeCommand(),
@@ -24,7 +24,7 @@ func NewSecureExecutor() Executor {
 	}
 }
 
-// runPrivilegedSecure runs commands with proper security measures
+// runPrivilegedSecure runs commands with proper security measures.
 func (e *SecureExecutor) runPrivilegedSecure(ctx context.Context, command string, args ...string) error {
 	// Create a context with timeout
 	cmdCtx, cancel := context.WithTimeout(ctx, e.timeout)
