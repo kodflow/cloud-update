@@ -218,12 +218,10 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 		if currentJob == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			if err := json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"status":  "no_job",
 				"message": "No job is currently running",
-			}); err != nil {
-				// Error already sent to client, just log
-			}
+			}) // Error already sent to client, ignore JSON encode errors
 			return
 		}
 		jobID = currentJob.ID
@@ -234,12 +232,10 @@ func (h *WebhookHandlerWithPool) HandleJobStatus(w http.ResponseWriter, r *http.
 	if job == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		if err := json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status":  "not_found",
 			"message": "Job not found",
-		}); err != nil {
-			// Error already sent to client, just log
-		}
+		}) // Error already sent to client, ignore JSON encode errors
 		return
 	}
 
