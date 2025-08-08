@@ -19,7 +19,7 @@ var (
 	logFile  *os.File
 )
 
-// Config holds logger configuration
+// Config holds logger configuration.
 type Config struct {
 	Level      string
 	FilePath   string
@@ -27,29 +27,29 @@ type Config struct {
 	MaxBackups int   // Number of backups to keep
 }
 
-// Initialize sets up the global logger instance
+// Initialize sets up the global logger instance.
 func Initialize(cfg Config) error {
 	var err error
 	once.Do(func() {
 		instance = logrus.New()
-		
+
 		// Set log level
 		level, parseErr := logrus.ParseLevel(cfg.Level)
 		if parseErr != nil {
 			level = logrus.InfoLevel
 		}
 		instance.SetLevel(level)
-		
+
 		// Set formatter
 		instance.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: time.RFC3339,
 			PrettyPrint:     false,
 		})
-		
+
 		// Setup file output only if path is specified
 		if cfg.FilePath != "" {
 			err = setupFileOutput(cfg)
-			
+
 			// Setup dual output to stdout and file
 			if err == nil && logFile != nil {
 				mw := io.MultiWriter(os.Stdout, logFile)
@@ -60,36 +60,36 @@ func Initialize(cfg Config) error {
 			instance.SetOutput(os.Stdout)
 		}
 	})
-	
+
 	return err
 }
 
 func setupFileOutput(cfg Config) error {
 	// Create log directory if it doesn't exist
 	logDir := filepath.Dir(cfg.FilePath)
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
-	
+
 	// Open log file
 	var err error
-	logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	
+
 	// Setup log rotation if needed
 	if cfg.MaxSize > 0 {
 		go monitorLogRotation(cfg)
 	}
-	
+
 	return nil
 }
 
 func monitorLogRotation(cfg Config) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		mu.Lock()
 		if logFile != nil {
@@ -104,20 +104,20 @@ func monitorLogRotation(cfg Config) {
 
 func rotateLog(cfg Config) {
 	if logFile != nil {
-		logFile.Close()
-		
+		_ = logFile.Close()
+
 		// Rename current log file
 		timestamp := time.Now().Format("20060102-150405")
 		backupPath := fmt.Sprintf("%s.%s", cfg.FilePath, timestamp)
-		os.Rename(cfg.FilePath, backupPath)
-		
+		_ = os.Rename(cfg.FilePath, backupPath)
+
 		// Create new log file
 		var err error
-		logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if err == nil {
 			instance.SetOutput(io.MultiWriter(os.Stdout, logFile))
 		}
-		
+
 		// Clean old backups
 		cleanOldBackups(cfg)
 	}
@@ -126,19 +126,19 @@ func rotateLog(cfg Config) {
 func cleanOldBackups(cfg Config) {
 	dir := filepath.Dir(cfg.FilePath)
 	base := filepath.Base(cfg.FilePath)
-	
+
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
-	
+
 	var backups []os.DirEntry
 	for _, file := range files {
 		if len(file.Name()) > len(base) && file.Name()[:len(base)] == base && file.Name() != base {
 			backups = append(backups, file)
 		}
 	}
-	
+
 	// Keep only MaxBackups files
 	if len(backups) > cfg.MaxBackups {
 		for i := 0; i < len(backups)-cfg.MaxBackups; i++ {
@@ -171,15 +171,15 @@ func WithFields(fields logrus.Fields) *logrus.Entry {
 	return Get().WithFields(fields)
 }
 
-// Close closes the log file
+// Close closes the log file.
 func Close() {
 	mu.Lock()
 	defer mu.Unlock()
-	
+
 	if logFile != nil {
 		// Reset to stdout only before closing the file
 		instance.SetOutput(os.Stdout)
-		logFile.Close()
+		_ = logFile.Close()
 		logFile = nil
 	}
 	// Reset the once to allow re-initialization in tests
@@ -188,13 +188,13 @@ func Close() {
 
 // Convenience functions
 func Debug(args ...interface{}) { Get().Debug(args...) }
-func Info(args ...interface{}) { Get().Info(args...) }
-func Warn(args ...interface{}) { Get().Warn(args...) }
+func Info(args ...interface{})  { Get().Info(args...) }
+func Warn(args ...interface{})  { Get().Warn(args...) }
 func Error(args ...interface{}) { Get().Error(args...) }
 func Fatal(args ...interface{}) { Get().Fatal(args...) }
 
 func Debugf(format string, args ...interface{}) { Get().Debugf(format, args...) }
-func Infof(format string, args ...interface{}) { Get().Infof(format, args...) }
-func Warnf(format string, args ...interface{}) { Get().Warnf(format, args...) }
+func Infof(format string, args ...interface{})  { Get().Infof(format, args...) }
+func Warnf(format string, args ...interface{})  { Get().Warnf(format, args...) }
 func Errorf(format string, args ...interface{}) { Get().Errorf(format, args...) }
 func Fatalf(format string, args ...interface{}) { Get().Fatalf(format, args...) }
