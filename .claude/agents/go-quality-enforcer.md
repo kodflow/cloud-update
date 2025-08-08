@@ -26,6 +26,7 @@ single warning.
 ## 🚨 CRITICAL RULES - NEVER VIOLATE
 
 **ABSOLUTE RULE**: **NEVER EVER use `git commit --no-verify` or `git push --no-verify`**
+
 - Git hooks exist to prevent broken code from reaching CI/CD
 - If hooks fail, FIX THE ISSUES, don't bypass them
 - Bypassing hooks leads to pipeline failures and broken builds

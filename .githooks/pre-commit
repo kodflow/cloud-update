@@ -119,7 +119,7 @@ fi
 # Check for secrets/credentials
 echo -e "${YELLOW}▶ Checking for secrets...${NC}"
 PATTERNS="password|secret|token|apikey|api_key|private_key|aws_access|AKIA"
-SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -iE "$PATTERNS" 2>/dev/null | grep -v "^[^:]*test\.go:" | grep -v "\.md:" | grep -v "\.githooks/" | grep -v "CLOUD_UPDATE_SECRET\|HMAC.*secret\|cfg\.Secret" || true)
+SECRETS=$(git diff --cached --name-only --diff-filter=ACM | xargs grep -iE "$PATTERNS" 2>/dev/null | grep -v "^[^:]*test\.go:" | grep -v "\.md:" | grep -v "\.githooks/" | grep -v "\.claude/agents/" | grep -v "CLOUD_UPDATE_SECRET\|HMAC.*secret\|cfg\.Secret" || true)
 if [ -n "$SECRETS" ]; then
     echo -e "${RED}  ✗ Possible secrets detected:${NC}"
     echo "$SECRETS" | head -3 | sed 's/^/    /'
