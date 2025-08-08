@@ -186,15 +186,32 @@ func Close() {
 	once = sync.Once{}
 }
 
-// Convenience functions
+// Debug logs a debug message.
 func Debug(args ...interface{}) { Get().Debug(args...) }
-func Info(args ...interface{})  { Get().Info(args...) }
-func Warn(args ...interface{})  { Get().Warn(args...) }
+
+// Info logs an info message.
+func Info(args ...interface{}) { Get().Info(args...) }
+
+// Warn logs a warning message.
+func Warn(args ...interface{}) { Get().Warn(args...) }
+
+// Error logs an error message.
 func Error(args ...interface{}) { Get().Error(args...) }
+
+// Fatal logs a fatal message and exits.
 func Fatal(args ...interface{}) { Get().Fatal(args...) }
 
+// Debugf logs a formatted debug message.
 func Debugf(format string, args ...interface{}) { Get().Debugf(format, args...) }
-func Infof(format string, args ...interface{})  { Get().Infof(format, args...) }
-func Warnf(format string, args ...interface{})  { Get().Warnf(format, args...) }
+
+// Infof logs a formatted info message.
+func Infof(format string, args ...interface{}) { Get().Infof(format, args...) }
+
+// Warnf logs a formatted warning message.
+func Warnf(format string, args ...interface{}) { Get().Warnf(format, args...) }
+
+// Errorf logs a formatted error message.
 func Errorf(format string, args ...interface{}) { Get().Errorf(format, args...) }
+
+// Fatalf logs a formatted fatal message and exits.
 func Fatalf(format string, args ...interface{}) { Get().Fatalf(format, args...) }

@@ -74,7 +74,7 @@ func TestLogger_WithFields(t *testing.T) {
 	// Test multiple fields
 	logger := &logrus.Logger{}
 	entry := logger.WithField("request_id", "123")
-	entry = entry.WithField("action", "update")
+	_ = entry.WithField("action", "update")
 	// Can't directly test the internal logger, but we can ensure no panic
 }
 
@@ -150,7 +150,7 @@ func TestLogger_CreateDirectory(t *testing.T) {
 	} else if !info.IsDir() {
 		t.Errorf("Expected %s to be a directory", logDir)
 	}
-	
+
 	// Also check that the log file was created
 	if _, err := os.Stat(logFile); err != nil {
 		t.Errorf("Log file was not created: %v", err)

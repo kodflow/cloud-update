@@ -1,4 +1,4 @@
-// Package store provides storage for job management
+// Package store provides storage for job management.
 package store
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/domain/entity"
 )
 
-// JobStore manages job storage and state
+// JobStore manages job storage and state.
 type JobStore struct {
 	// Current running job (only one job can run at a time)
 	currentJob *entity.JobWithMutex
@@ -18,7 +18,7 @@ type JobStore struct {
 	maxHistory int
 }
 
-// NewJobStore creates a new job store
+// NewJobStore creates a new job store.
 func NewJobStore() *JobStore {
 	return &JobStore{
 		maxHistory: 100, // Keep last 100 jobs in history
@@ -26,14 +26,14 @@ func NewJobStore() *JobStore {
 	}
 }
 
-// GetCurrentJob returns the current running job if any
+// GetCurrentJob returns the current running job if any.
 func (s *JobStore) GetCurrentJob() *entity.JobWithMutex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.currentJob
 }
 
-// TryStartJob attempts to start a new job
+// TryStartJob attempts to start a new job.
 // Returns false if another job is already running
 func (s *JobStore) TryStartJob(job *entity.JobWithMutex) bool {
 	s.mu.Lock()
@@ -50,7 +50,7 @@ func (s *JobStore) TryStartJob(job *entity.JobWithMutex) bool {
 	return true
 }
 
-// CompleteCurrentJob marks the current job as completed
+// CompleteCurrentJob marks the current job as completed.
 func (s *JobStore) CompleteCurrentJob() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

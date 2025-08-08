@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// GenerateJobID creates a cryptographically secure job ID
+// GenerateJobID creates a cryptographically secure job ID.
 func GenerateJobID() (string, error) {
 	// Generate 16 random bytes (128 bits)
 	b := make([]byte, 16)
@@ -16,12 +16,12 @@ func GenerateJobID() (string, error) {
 		// Fallback to timestamp-based ID if crypto/rand fails
 		return fmt.Sprintf("job_%d_%x", time.Now().UnixNano(), time.Now().Unix()), nil
 	}
-	
+
 	// Return hex-encoded job ID
 	return fmt.Sprintf("job_%s", hex.EncodeToString(b)), nil
 }
 
-// GenerateSecureToken generates a secure random token of specified length
+// GenerateSecureToken generates a secure random token of specified length.
 func GenerateSecureToken(length int) (string, error) {
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
