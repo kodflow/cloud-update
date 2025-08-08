@@ -215,10 +215,120 @@ jobs:
         if: always()
         run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
 
-  # Final release job
+  # Prerelease job for Pull Requests
+  prerelease:
+    name: Create Prerelease
+    if: github.event_name == 'pull_request'
+    needs: [analyze, build, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: cloud-update-binaries
+          path: .dist/
+
+      - name: Create archives for release
+        run: |
+          cd .dist
+          
+          # Create archives
+          for file in cloud-update-*; do
+            if [[ "$file" == *.exe ]]; then
+              # For Windows, create a zip file
+              zip "${file%.exe}.zip" "$file"
+              echo "Created ${file%.exe}.zip"
+            else
+              # For Unix systems, create tar.gz
+              tar -czf "${file}.tar.gz" "$file"
+              echo "Created ${file}.tar.gz"
+            fi
+          done
+          
+          # Generate SHA256 checksums
+          echo "Generating SHA256 checksums..."
+          sha256sum *.tar.gz *.zip 2>/dev/null > checksums.sha256 || true
+          
+          # Display checksums for verification
+          echo "SHA256 Checksums:"
+          cat checksums.sha256
+          
+          cd ..
+          
+          # List archives
+          echo "Release archives:"
+          ls -la .dist/*.{tar.gz,zip} 2>/dev/null || true
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Get the current and previous tags
+          CURRENT_TAG="${{ needs.analyze.outputs.version }}"
+          PREVIOUS_TAG="${{ needs.analyze.outputs.current }}"
+          
+          # Generate changelog between tags
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+            CHANGELOG="Initial release"
+          else
+            # Get commit messages since last tag
+            CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "^- Merge" || echo "")
+            
+            # Categorize changes
+            FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature):" | sed 's/^- feat:/- /' | sed 's/^- feature:/- /' || echo "")
+            FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix):" | sed 's/^- fix:/- /' | sed 's/^- bugfix:/- /' || echo "")
+            IMPROVEMENTS=$(echo "$CHANGELOG" | grep -E "^- (perf|improve|enhancement):" | sed 's/^- [^:]*:/- /' || echo "")
+            OTHER=$(echo "$CHANGELOG" | grep -vE "^- (feat|feature|fix|bugfix|perf|improve|enhancement):" || echo "")
+          fi
+          
+          # Format release notes
+          cat << EOF > release_notes.md
+          ## Release ${CURRENT_TAG}
+          
+          ${FEATURES:+### 🚀 Features
+          $FEATURES
+          }
+          ${FIXES:+### 🐛 Bug Fixes
+          $FIXES
+          }
+          ${IMPROVEMENTS:+### ⚡ Performance & Improvements
+          $IMPROVEMENTS
+          }
+          ${OTHER:+### 🔧 Other Changes
+          $OTHER
+          }
+          
+          **Full Changelog**: ${PREVIOUS_TAG:+https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}}
+          EOF
+          
+          echo "Release notes generated for ${CURRENT_TAG}"
+
+      - name: Create Prerelease (No Tag)
+        uses: ncipollo/release-action@v1
+        with:
+          name: Prerelease ${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}
+          tag: ${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}
+          bodyFile: release_notes.md
+          artifacts: |
+            .dist/*.tar.gz
+            .dist/*.zip
+            .dist/checksums.sha256
+          draft: true
+          prerelease: true
+          makeLatest: false
+          allowUpdates: true
+          skipIfReleaseExists: false
+          replacesArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Final release job for main branch
   release:
     name: Tag + Publish
-    if: github.ref == 'refs/heads/main' && (needs.analyze.outputs.version != needs.analyze.outputs.current || needs.analyze.outputs.current == 'v0.0.0')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.analyze.outputs.version != needs.analyze.outputs.current || needs.analyze.outputs.current == 'v0.0.0')
     needs: [analyze, build, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -311,8 +421,21 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          
+          # Create and push the version tag
           git tag -a ${{ needs.analyze.outputs.version }} -m "Release ${{ needs.analyze.outputs.version }}"
           git push origin ${{ needs.analyze.outputs.version }}
+
+      - name: Delete Prerelease if exists
+        run: |
+          # Check if there's a prerelease to delete
+          gh release list --limit 100 | grep -E "pr[0-9]+" | awk '{print $3}' | while read tag; do
+            echo "Deleting prerelease: $tag"
+            gh release delete "$tag" -y || true
+            git push --delete origin "$tag" 2>/dev/null || true
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
@@ -324,8 +447,8 @@ jobs:
             .dist/*.tar.gz
             .dist/*.zip
             .dist/checksums.sha256
-          draft: ${{ github.event_name == 'pull_request' }}
-          prerelease: ${{ contains(needs.analyze.outputs.version, '-') }}
+          draft: false
+          prerelease: false
           makeLatest: true
           allowUpdates: true
           skipIfReleaseExists: true
