@@ -87,13 +87,17 @@ func main() {
 	systemExecutor := system.NewSystemExecutor()
 	actionService := service.NewActionService(systemExecutor)
 
-	// Initialize handlers
+	// Initialize handlers with status tracking
 	healthHandler := handler.NewHealthHandler()
-	webhookHandler := handler.NewWebhookHandlerWithPool(actionService, authenticator, workerPool)
+	webhookHandler := handler.NewWebhookHandlerWithStatus(actionService, authenticator)
+	
+	// Start cleanup goroutine for old jobs
+	go webhookHandler.Cleanup()
 
 	// Setup HTTP routes
 	http.HandleFunc("/health", healthHandler.HandleHealth)
 	http.HandleFunc("/webhook", webhookHandler.HandleWebhook)
+	http.HandleFunc("/job/status", webhookHandler.HandleJobStatus)
 
 	// Start server with proper timeouts
 	addr := fmt.Sprintf(":%s", cfg.Port)
