@@ -132,14 +132,22 @@ jobs:
             # Copy the binary with the appropriate extension
             OUTPUT_NAME="cloud-update-${OS}-${ARCH}"
             if [ "$OS" = "windows" ]; then
-              cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null || \
-              cp bazel-bin/src/cmd/cloud-update/windows_amd64_pure_stripped/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null || \
-              echo "Warning: Could not find Windows binary"
+              if cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null || \
+                 cp bazel-bin/src/cmd/cloud-update/windows_amd64_pure_stripped/cloud-update.exe .dist/${OUTPUT_NAME}.exe 2>/dev/null; then
+                echo "✓ Built ${OUTPUT_NAME}.exe"
+              else
+                echo "✗ Failed to build Windows binary for ${ARCH}"
+                exit 1
+              fi
             else
-              cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null || \
-              cp bazel-bin/src/cmd/cloud-update/${OS}_${ARCH}_pure_stripped/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null || \
-              echo "Warning: Could not find ${OS}/${ARCH} binary"
-              chmod +x .dist/${OUTPUT_NAME} 2>/dev/null || true
+              if cp bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null || \
+                 cp bazel-bin/src/cmd/cloud-update/${OS}_${ARCH}_pure_stripped/cloud-update .dist/${OUTPUT_NAME} 2>/dev/null; then
+                chmod +x .dist/${OUTPUT_NAME}
+                echo "✓ Built ${OUTPUT_NAME}"
+              else
+                echo "✗ Failed to build ${OS}/${ARCH} binary"
+                exit 1
+              fi
             fi
           done
           
@@ -228,6 +236,8 @@ jobs:
       - name: Create archives for release
         run: |
           cd .dist
+          
+          # Create archives
           for file in cloud-update-*; do
             if [[ "$file" == *.exe ]]; then
               # For Windows, create a zip file
@@ -239,6 +249,15 @@ jobs:
               echo "Created ${file}.tar.gz"
             fi
           done
+          
+          # Generate SHA256 checksums
+          echo "Generating SHA256 checksums..."
+          sha256sum *.tar.gz *.zip 2>/dev/null > checksums.sha256 || true
+          
+          # Display checksums for verification
+          echo "SHA256 Checksums:"
+          cat checksums.sha256
+          
           cd ..
           
           # List archives
@@ -304,6 +323,9 @@ jobs:
           artifacts: |
             .dist/*.tar.gz
             .dist/*.zip
+            .dist/checksums.sha256
+          draft: ${{ github.event_name == 'pull_request' }}
+          prerelease: ${{ contains(needs.analyze.outputs.version, '-') }}
           makeLatest: true
           allowUpdates: true
           skipIfReleaseExists: true
