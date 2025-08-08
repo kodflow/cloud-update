@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
 
 # Copy the pre-built binary and install script
 WORKDIR /app
-COPY dist/cloud-update_linux_amd64_v1/cloud-update /app/cloud-update
+# First try to copy from test directory, fallback to dist
+COPY src/test/e2e/cloud-update /app/cloud-update
 COPY scripts/install.sh /app/install.sh
 
 # Make scripts executable

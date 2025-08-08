@@ -140,7 +140,19 @@ func TestLogger_CreateDirectory(t *testing.T) {
 	Info("Test message")
 
 	// Check that directory was created
-	if _, err := os.Stat(filepath.Dir(logFile)); os.IsNotExist(err) {
-		t.Error("Log directory was not created")
+	logDir := filepath.Dir(logFile)
+	if info, err := os.Stat(logDir); err != nil {
+		if os.IsNotExist(err) {
+			t.Errorf("Log directory was not created: %s", logDir)
+		} else {
+			t.Errorf("Error checking log directory: %v", err)
+		}
+	} else if !info.IsDir() {
+		t.Errorf("Expected %s to be a directory", logDir)
+	}
+	
+	// Also check that the log file was created
+	if _, err := os.Stat(logFile); err != nil {
+		t.Errorf("Log file was not created: %v", err)
 	}
 }

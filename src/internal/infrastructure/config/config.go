@@ -8,17 +8,19 @@ import (
 
 // Config represents the service configuration.
 type Config struct {
-	Port     string
-	Secret   string
-	LogLevel string
+	Port        string
+	Secret      string
+	LogLevel    string
+	LogFilePath string
 }
 
 // Load loads the configuration from environment variables.
 func Load() *Config {
 	config := &Config{
-		Port:     getEnvOrDefault("CLOUD_UPDATE_PORT", "9999"),
-		Secret:   getEnvOrDefault("CLOUD_UPDATE_SECRET", ""),
-		LogLevel: getEnvOrDefault("CLOUD_UPDATE_LOG_LEVEL", "info"),
+		Port:        getEnvOrDefault("CLOUD_UPDATE_PORT", "9999"),
+		Secret:      getEnvOrDefault("CLOUD_UPDATE_SECRET", ""),
+		LogLevel:    getEnvOrDefault("CLOUD_UPDATE_LOG_LEVEL", "info"),
+		LogFilePath: getEnvOrDefault("CLOUD_UPDATE_LOG_FILE", "/var/log/cloud-update/cloud-update.log"),
 	}
 
 	if config.Secret == "" {

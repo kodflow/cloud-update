@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -159,7 +160,7 @@ func TestJobStore_MaxHistory(t *testing.T) {
 
 	// Create more jobs than max history
 	for i := 0; i < 10; i++ {
-		job := entity.NewJob(string(rune('a'+i)), entity.ActionUpdate)
+		job := entity.NewJob(fmt.Sprintf("job_%d", i), entity.ActionUpdate)
 		store.TryStartJob(job)
 		store.CompleteCurrentJob()
 	}
@@ -171,15 +172,15 @@ func TestJobStore_MaxHistory(t *testing.T) {
 
 	// First 5 jobs should be gone
 	for i := 0; i < 5; i++ {
-		if store.GetJobByID(string(rune('a'+i))) != nil {
-			t.Errorf("Expected job %c to be gone", 'a'+i)
+		if store.GetJobByID(fmt.Sprintf("job_%d", i)) != nil {
+			t.Errorf("Expected job_%d to be gone", i)
 		}
 	}
 
 	// Last 5 jobs should be present
 	for i := 5; i < 10; i++ {
-		if store.GetJobByID(string(rune('a'+i))) == nil {
-			t.Errorf("Expected job %c to be present", 'a'+i)
+		if store.GetJobByID(fmt.Sprintf("job_%d", i)) == nil {
+			t.Errorf("Expected job_%d to be present", i)
 		}
 	}
 }

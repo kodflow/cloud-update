@@ -46,18 +46,19 @@ func Initialize(cfg Config) error {
 			PrettyPrint:     false,
 		})
 		
-		// Setup file output
+		// Setup file output only if path is specified
 		if cfg.FilePath != "" {
 			err = setupFileOutput(cfg)
+			
+			// Setup dual output to stdout and file
+			if err == nil && logFile != nil {
+				mw := io.MultiWriter(os.Stdout, logFile)
+				instance.SetOutput(mw)
+			}
 		} else {
-			// Default to /var/log/cloud-update/ near cloud-init logs
-			cfg.FilePath = "/var/log/cloud-update/cloud-update.log"
-			err = setupFileOutput(cfg)
+			// No file path specified, only log to stdout
+			instance.SetOutput(os.Stdout)
 		}
-		
-		// Always also log to stdout for systemd journal
-		mw := io.MultiWriter(os.Stdout, instance.Out)
-		instance.SetOutput(mw)
 	})
 	
 	return err
@@ -76,8 +77,6 @@ func setupFileOutput(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	
-	instance.SetOutput(logFile)
 	
 	// Setup log rotation if needed
 	if cfg.MaxSize > 0 {
@@ -178,9 +177,13 @@ func Close() {
 	defer mu.Unlock()
 	
 	if logFile != nil {
+		// Reset to stdout only before closing the file
+		instance.SetOutput(os.Stdout)
 		logFile.Close()
 		logFile = nil
 	}
+	// Reset the once to allow re-initialization in tests
+	once = sync.Once{}
 }
 
 // Convenience functions

@@ -11,6 +11,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "logger_test",
     srcs = ["logger_test.go"],
     embed = [":logger"],

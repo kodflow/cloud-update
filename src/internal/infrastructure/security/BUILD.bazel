@@ -11,6 +11,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "security_test",
     srcs = ["auth_test.go"],
     embed = [":security"],

@@ -58,7 +58,7 @@ jobs:
             bazel-test-v2-
 
       - name: Run unit tests
-        run: bazel test --config=ci //src/internal/... //src/cmd/...
+        run: make test-unit
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

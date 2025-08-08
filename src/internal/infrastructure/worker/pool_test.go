@@ -42,10 +42,13 @@ func TestWorkerPool_QueueFull(t *testing.T) {
 	pool := NewPool(1, 2) // 1 worker, 2 task backlog
 	defer pool.Shutdown(5 * time.Second)
 
-	// Block the worker
+	// Block the worker with a long-running task
 	pool.Submit(func(ctx context.Context) {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	})
+
+	// Give time for the worker to pick up the first task
+	time.Sleep(10 * time.Millisecond)
 
 	// Fill the queue
 	for i := 0; i < 2; i++ {

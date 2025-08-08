@@ -65,7 +65,7 @@ func main() {
 	// Initialize logger
 	logCfg := logger.Config{
 		Level:      cfg.LogLevel,
-		FilePath:   "/var/log/cloud-update/cloud-update.log",
+		FilePath:   cfg.LogFilePath,
 		MaxSize:    10 * 1024 * 1024, // 10MB
 		MaxBackups: 5,
 	}
@@ -82,7 +82,11 @@ func main() {
 	}
 	// Initialize worker pool for async processing
 	workerPool := worker.NewPool(10, 100) // 10 workers, 100 task backlog
-	defer workerPool.Shutdown(30 * time.Second)
+	defer func() {
+		if err := workerPool.Shutdown(30 * time.Second); err != nil {
+			logger.Errorf("Failed to shutdown worker pool: %v", err)
+		}
+	}()
 
 	systemExecutor := system.NewSystemExecutor()
 	actionService := service.NewActionService(systemExecutor)

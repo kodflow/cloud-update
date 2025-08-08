@@ -20,6 +20,11 @@ if [ -f .env.test ]; then
     set -o allexport
     source .env.test
     set +o allexport
+else
+    # Set default values if .env.test doesn't exist
+    export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+    export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
+    export CLOUD_UPDATE_LOG_LEVEL="debug"
 fi
 
 # Test configuration
@@ -66,8 +71,10 @@ test_health_endpoint() {
 test_webhook_endpoint() {
     echo -e "${YELLOW}Testing webhook endpoint...${NC}"
     
-    PAYLOAD='{"action":"update","job_id":"test-123"}'
-    SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${E2E_SECRET:-test-secret}" | cut -d' ' -f2)
+    # Include timestamp in payload
+    TIMESTAMP=$(date +%s)
+    PAYLOAD='{"action":"update","timestamp":'$TIMESTAMP'}'
+    SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${E2E_SECRET:-test-secret-key-for-e2e-testing-purposes-only}" | cut -d' ' -f2)
     
     RESPONSE=$(curl -sf -X POST \
         -H "Content-Type: application/json" \
@@ -91,7 +98,7 @@ main() {
     
     # Clean up existing container
     echo -e "${YELLOW}Cleaning up existing container...${NC}"
-    : "${DOCKER_COMPOSE_FILE:=docker-compose.yml}"
+    DOCKER_COMPOSE_FILE="${COMPOSE_FILE}"
     docker compose -f $DOCKER_COMPOSE_FILE stop $DISTRO 2>/dev/null || true
     docker compose -f $DOCKER_COMPOSE_FILE rm -f $DISTRO 2>/dev/null || true
     

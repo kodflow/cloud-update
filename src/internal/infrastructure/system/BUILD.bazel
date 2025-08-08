@@ -14,6 +14,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "system_test",
     srcs = ["executor_test.go"],
     embed = [":system"],

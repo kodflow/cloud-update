@@ -8,6 +8,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "worker_test",
     srcs = ["pool_test.go"],
     embed = [":worker"],

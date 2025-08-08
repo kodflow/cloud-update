@@ -15,7 +15,7 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/store"
 )
 
-// WebhookHandlerWithStatus handles webhook requests with job status tracking
+// WebhookHandlerWithStatus handles webhook requests with job status tracking.
 type WebhookHandlerWithStatus struct {
 	actionService service.ActionService
 	authenticator security.Authenticator

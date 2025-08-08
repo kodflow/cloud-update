@@ -19,6 +19,8 @@ type Pool struct {
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
 	maxBacklog int
+	shutdown   bool
+	mu         sync.RWMutex
 }
 
 // NewPool creates a new worker pool
@@ -26,10 +28,10 @@ func NewPool(workers int, maxBacklog int) *Pool {
 	ctx, cancel := context.WithCancel(context.Background())
 	
 	if workers <= 0 {
-		workers = 10 // Default to 10 workers
+		workers = 10 // Default to 10 workers (minimum 1)
 	}
 	if maxBacklog <= 0 {
-		maxBacklog = 100 // Default to 100 task backlog
+		maxBacklog = 100 // Default to 100 task backlog (minimum 1)
 	}
 	
 	p := &Pool{
@@ -72,6 +74,13 @@ func (p *Pool) worker(id int) {
 
 // Submit adds a task to the pool
 func (p *Pool) Submit(task Task) error {
+	p.mu.RLock()
+	if p.shutdown {
+		p.mu.RUnlock()
+		return fmt.Errorf("pool is shutdown")
+	}
+	p.mu.RUnlock()
+	
 	select {
 	case p.tasks <- task:
 		return nil
@@ -82,6 +91,13 @@ func (p *Pool) Submit(task Task) error {
 
 // SubmitWait adds a task to the pool and waits for space if full
 func (p *Pool) SubmitWait(task Task, timeout time.Duration) error {
+	p.mu.RLock()
+	if p.shutdown {
+		p.mu.RUnlock()
+		return fmt.Errorf("pool is shutdown")
+	}
+	p.mu.RUnlock()
+	
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
 	
@@ -95,6 +111,15 @@ func (p *Pool) SubmitWait(task Task, timeout time.Duration) error {
 
 // Shutdown gracefully shuts down the pool
 func (p *Pool) Shutdown(timeout time.Duration) error {
+	// Mark as shutdown
+	p.mu.Lock()
+	if p.shutdown {
+		p.mu.Unlock()
+		return nil
+	}
+	p.shutdown = true
+	p.mu.Unlock()
+	
 	// Stop accepting new tasks
 	close(p.tasks)
 	

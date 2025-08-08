@@ -12,6 +12,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "service_test",
     srcs = ["action_service_test.go"],
     embed = [":service"],

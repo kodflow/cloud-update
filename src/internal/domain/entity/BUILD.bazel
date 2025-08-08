@@ -11,6 +11,7 @@ go_library(
 )
 
 go_test(
+    size = "small",
     name = "entity_test",
     srcs = ["action_test.go"],
     embed = [":entity"],

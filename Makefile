@@ -19,9 +19,9 @@ help:
 	@grep -E '^##' Makefile | sed 's/## //'
 
 ## all: Build and test everything
-all: lint test build
+all: lint test-unit build
 
-## build: Build the binary
+## build: Build the binary for current platform
 build:
 	@echo "$(YELLOW)🔨 Building $(BINARY_NAME)...$(NC)"
 	@$(BAZEL) build //src/cmd/cloud-update:cloud-update \
@@ -31,11 +31,35 @@ build:
 	@chmod +x ./$(BINARY_NAME)
 	@echo "$(GREEN)✅ Binary built: ./$(BINARY_NAME)$(NC)"
 
-## test: Run unit tests
-test:
+## build-all: Build binaries for all platforms
+build-all:
+	@echo "$(YELLOW)🔨 Building for all platforms...$(NC)"
+	@chmod +x scripts/build-all.sh
+	@./scripts/build-all.sh
+	@echo "$(GREEN)✅ All binaries built$(NC)"
+
+## test: Run all tests (unit + e2e)
+test: test-unit test-e2e
+	@echo "$(GREEN)✅ All tests passed$(NC)"
+
+## test-unit: Run only unit tests
+test-unit:
 	@echo "$(YELLOW)🧪 Running unit tests...$(NC)"
 	@$(BAZEL) test //src/internal/... //src/cmd/... --test_output=errors --cache_test_results=no
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
+
+## test-e2e: Run only E2E tests  
+test-e2e: prepare-e2e
+	@echo "$(YELLOW)🚀 Running E2E tests...$(NC)"
+	@chmod +x src/test/e2e/run_parallel.sh
+	@./src/test/e2e/run_parallel.sh
+	@echo "$(GREEN)✅ E2E tests completed$(NC)"
+
+## prepare-e2e: Prepare binaries for E2E tests
+prepare-e2e:
+	@echo "$(YELLOW)🔧 Preparing E2E tests...$(NC)"
+	@chmod +x scripts/prepare-e2e.sh
+	@./scripts/prepare-e2e.sh
 
 ## lint: Run golangci-lint
 lint:
@@ -92,12 +116,12 @@ fmt:
 	@$(GO) fmt ./...
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 
-## ci: Run the same checks as CI (lint, test, build, e2e)
-ci: lint test build e2e
+## ci: Run the same checks as CI (lint, test, build)
+ci: lint test-unit build test-e2e
 	@echo "$(GREEN)✅ All CI checks passed!$(NC)"
 
 ## quick: Quick build and test (no linting or E2E)
-quick: test build
+quick: test-unit build
 	@echo "$(GREEN)✅ Quick check passed$(NC)"
 
 ## docker-up: Start E2E test containers
