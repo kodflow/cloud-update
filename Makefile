@@ -11,7 +11,7 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 # Tools
 BAZEL := bazel
 GO := go
-GOLANGCI_LINT := golangci-lint
+GOLANGCI_LINT := $(shell go env GOPATH)/bin/golangci-lint
 DOCKER_COMPOSE := docker compose
 
 # Paths
