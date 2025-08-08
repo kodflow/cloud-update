@@ -236,21 +236,45 @@ jobs:
           **Note**: This is a prerelease and should not be used in production.
           EOF
 
-      - name: Create Prerelease
+      - name: Create or Update Prerelease
         id: create_release
         run: |
           RELEASE_TAG="${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}"
           echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
           
-          # Create the prerelease
-          gh release create "${RELEASE_TAG}" \
-            --title "Prerelease ${RELEASE_TAG}" \
-            --notes-file release_notes.md \
-            --draft \
-            --prerelease \
-            .dist/*.tar.gz \
-            .dist/*.zip \
-            .dist/checksums.sha256
+          # Check if release already exists
+          if gh release view "${RELEASE_TAG}" &>/dev/null; then
+            echo "📝 Updating existing prerelease: ${RELEASE_TAG}"
+            
+            # Delete old assets
+            gh release delete-asset "${RELEASE_TAG}" --pattern "*" -y 2>/dev/null || true
+            
+            # Update the release with new assets and notes
+            gh release edit "${RELEASE_TAG}" \
+              --title "Prerelease ${RELEASE_TAG}" \
+              --notes-file release_notes.md \
+              --draft \
+              --prerelease
+            
+            # Upload new assets
+            gh release upload "${RELEASE_TAG}" \
+              .dist/*.tar.gz \
+              .dist/*.zip \
+              .dist/checksums.sha256 \
+              --clobber
+          else
+            echo "🆕 Creating new prerelease: ${RELEASE_TAG}"
+            
+            # Create new prerelease
+            gh release create "${RELEASE_TAG}" \
+              --title "Prerelease ${RELEASE_TAG}" \
+              --notes-file release_notes.md \
+              --draft \
+              --prerelease \
+              .dist/*.tar.gz \
+              .dist/*.zip \
+              .dist/checksums.sha256
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -335,6 +359,39 @@ jobs:
       - name: Clean up containers
         if: always()
         run: docker compose -f src/test/e2e/docker-compose.yml down --volumes --remove-orphans || true
+
+      - name: Update prerelease status
+        if: github.event_name == 'pull_request' && always()
+        run: |
+          RELEASE_TAG="${{ needs.prerelease.outputs.release_tag }}"
+          
+          # Generate updated release notes with test status
+          cat << EOF > release_notes_updated.md
+          ## Prerelease for PR #${{ github.event.pull_request.number }}
+          
+          This is a prerelease build for testing purposes.
+          
+          ### Pull Request
+          - Title: ${{ github.event.pull_request.title }}
+          - Branch: ${{ github.head_ref }}
+          - Commit: ${{ github.sha }}
+          
+          ### Test Status
+          - Build: ✅ Completed
+          - E2E Tests: ${{ job.status == 'success' && '✅ Passed' || '❌ Failed' }}
+          - Matrix: ${{ matrix.init_system.name }} (${{ matrix.init_system.distro }})
+          
+          ### Downloads
+          Available binaries for all platforms with SHA256 checksums.
+          
+          **Note**: This is a prerelease and should not be used in production.
+          EOF
+          
+          # Update the release notes
+          gh release edit "${RELEASE_TAG}" \
+            --notes-file release_notes_updated.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
   # Final release job for main branch
