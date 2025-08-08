@@ -94,7 +94,7 @@ func main() {
 	// Initialize handlers with status tracking
 	healthHandler := handler.NewHealthHandler()
 	webhookHandler := handler.NewWebhookHandlerWithStatus(actionService, authenticator)
-	
+
 	// Start cleanup goroutine for old jobs
 	go webhookHandler.Cleanup()
 

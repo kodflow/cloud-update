@@ -22,7 +22,7 @@ type WebhookHandlerWithStatus struct {
 	jobStore      *store.JobStore
 }
 
-// NewWebhookHandlerWithStatus creates a new webhook handler with job status tracking
+// NewWebhookHandlerWithStatus creates a new webhook handler with job status tracking.
 func NewWebhookHandlerWithStatus(
 	actionService service.ActionService,
 	authenticator security.Authenticator,
@@ -34,7 +34,7 @@ func NewWebhookHandlerWithStatus(
 	}
 }
 
-// HandleWebhook processes incoming webhook requests with job status management
+// HandleWebhook processes incoming webhook requests with job status management.
 func (h *WebhookHandlerWithStatus) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Only accept POST requests
 	if r.Method != http.MethodPost {
@@ -92,7 +92,7 @@ func (h *WebhookHandlerWithStatus) HandleWebhook(w http.ResponseWriter, r *http.
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Job-ID", currentJob.ID)
 		w.WriteHeader(http.StatusConflict)
-		
+
 		response := map[string]interface{}{
 			"status":  "job_in_progress",
 			"job_id":  currentJob.ID,
@@ -100,7 +100,9 @@ func (h *WebhookHandlerWithStatus) HandleWebhook(w http.ResponseWriter, r *http.
 			"started": currentJob.StartTime,
 			"message": "Another job is already running. Please wait for it to complete.",
 		}
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logger.WithField("error", err).Error("Failed to encode response")
+		}
 		return
 	}
 
@@ -138,17 +140,19 @@ func (h *WebhookHandlerWithStatus) HandleWebhook(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Job-ID", jobID)
 	w.WriteHeader(http.StatusAccepted)
-	
+
 	response := map[string]interface{}{
 		"status":  "accepted",
 		"job_id":  jobID,
 		"action":  req.Action,
 		"message": "Job accepted and processing started",
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.WithField("error", err).Error("Failed to encode response")
+	}
 }
 
-// processActionWithStatus processes an action and updates job status
+// processActionWithStatus processes an action and updates job status.
 func (h *WebhookHandlerWithStatus) processActionWithStatus(req entity.WebhookRequest, job *entity.JobWithMutex) {
 	// Ensure we mark the job as complete or failed when done
 	defer func() {
@@ -168,13 +172,13 @@ func (h *WebhookHandlerWithStatus) processActionWithStatus(req entity.WebhookReq
 	// For now, assume success if no panic occurred
 	// In a real implementation, ProcessAction should return an error
 	h.jobStore.CompleteCurrentJob()
-	
+
 	logger.WithField("job_id", job.ID).
 		WithField("action", req.Action).
 		Info("Job completed successfully")
 }
 
-// HandleJobStatus returns the status of a specific job
+// HandleJobStatus returns the status of a specific job.
 func (h *WebhookHandlerWithStatus) HandleJobStatus(w http.ResponseWriter, r *http.Request) {
 	// Only accept GET requests
 	if r.Method != http.MethodGet {
@@ -202,7 +206,7 @@ func (h *WebhookHandlerWithStatus) HandleJobStatus(w http.ResponseWriter, r *htt
 
 	// Prepare response based on job status
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	response := map[string]interface{}{
 		"job_id":  job.ID,
 		"action":  job.Action,
@@ -235,10 +239,12 @@ func (h *WebhookHandlerWithStatus) HandleJobStatus(w http.ResponseWriter, r *htt
 		response["message"] = "Job is pending"
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.WithField("error", err).Error("Failed to encode response")
+	}
 }
 
-// Cleanup runs periodic cleanup of old jobs
+// Cleanup runs periodic cleanup of old jobs.
 func (h *WebhookHandlerWithStatus) Cleanup() {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
