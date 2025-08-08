@@ -180,7 +180,7 @@ test/quick: test/unit build
 
 ## quality/analyze: run complete code analysis [QUALITY]
 .PHONY: quality/analyze
-quality/analyze: quality/format quality/lint quality/security
+quality/analyze: quality/format quality/lint quality/security quality/secrets
 	@echo "$(GREEN)✓ All quality checks passed!$(NC)"
 
 ## quality/format: format all code (Go, YAML, JSON, MD) [QUALITY]
@@ -215,6 +215,19 @@ quality/security:
 		echo "$(YELLOW)⚠ gosec not installed, skipping security scan$(NC)"; \
 	fi
 	@echo "$(GREEN)✓ Security scan complete$(NC)"
+
+## quality/secrets: scan for secrets with gitleaks [QUALITY]
+.PHONY: quality/secrets
+quality/secrets:
+	@echo "$(YELLOW)▶ Scanning for secrets...$(NC)"
+	@if command -v gitleaks > /dev/null 2>&1; then \
+		gitleaks detect --no-banner --exit-code 0 || \
+		(echo "$(RED)✗ Secrets detected! Run 'gitleaks detect --verbose' for details$(NC)" && exit 1); \
+		echo "$(GREEN)✓ No secrets found$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠ gitleaks not installed$(NC)"; \
+		echo "$(YELLOW)  Install with: brew install gitleaks$(NC)"; \
+	fi
 
 ## quality/fix: automatically fix all fixable issues [QUALITY]
 .PHONY: quality/fix
