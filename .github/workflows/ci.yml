@@ -399,8 +399,7 @@ jobs:
     name: Tag + Publish
     if: |
       github.ref == 'refs/heads/main' && 
-      github.event_name == 'push' &&
-      !contains(github.event.head_commit.message, '[skip release]')
+      github.event_name == 'push'
     needs: [analyze, build, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -409,13 +408,39 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check if release needed
+        id: check_release
+        run: |
+          VERSION="${{ needs.analyze.outputs.version }}"
+          
+          # Check if tag already exists
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists"
+            echo "needed=false" >> $GITHUB_OUTPUT
+            
+            # Check if release exists
+            if gh release view "$VERSION" >/dev/null 2>&1; then
+              echo "Release $VERSION already exists"
+            else
+              echo "Tag exists but release is missing, will create release"
+              echo "needed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Tag $VERSION does not exist, will create tag and release"
+            echo "needed=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download binaries
+        if: steps.check_release.outputs.needed == 'true'
         uses: actions/download-artifact@v4
         with:
           name: cloud-update-binaries
           path: .dist/
 
       - name: Create archives for release
+        if: steps.check_release.outputs.needed == 'true'
         run: |
           cd .dist
           
@@ -447,6 +472,7 @@ jobs:
           ls -la .dist/*.{tar.gz,zip} 2>/dev/null || true
 
       - name: Generate Release Notes
+        if: steps.check_release.outputs.needed == 'true'
         id: release_notes
         run: |
           # Get the current and previous tags
@@ -490,6 +516,7 @@ jobs:
           echo "Release notes generated for ${CURRENT_TAG}"
 
       - name: Create Tag
+        if: steps.check_release.outputs.needed == 'true'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -506,6 +533,7 @@ jobs:
           fi
 
       - name: Delete Prerelease if exists
+        if: steps.check_release.outputs.needed == 'true'
         run: |
           # Check if there's a prerelease to delete
           gh release list --limit 100 | grep -E "pr[0-9]+" | awk '{print $3}' | while read tag; do
@@ -517,6 +545,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
+        if: steps.check_release.outputs.needed == 'true'
         uses: ncipollo/release-action@v1
         with:
           name: Release ${{ needs.analyze.outputs.version }}
