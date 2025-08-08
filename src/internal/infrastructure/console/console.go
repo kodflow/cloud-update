@@ -1,3 +1,5 @@
+// Package console provides CLI output functions for the Cloud Update service.
+// This package centralizes console output (help, version, etc.) separate from logging.
 package console
 
 import "fmt"

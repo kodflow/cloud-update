@@ -1,0 +1,37 @@
+# Bazel files
+bazel-*
+*.bazel
+BUILD
+WORKSPACE
+
+# Go files (handled by gofmt)
+*.go
+
+# Generated files
+*.pb.go
+*.gen.go
+*_gen.go
+
+# Vendor
+vendor/
+
+# Build artifacts
+dist/
+bin/
+*.exe
+
+# Git
+.git/
+
+# IDE
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+go.sum
+
+# Test coverage
+*.out
+coverage.html
+gosec-report.json
