@@ -142,16 +142,16 @@ func cleanOldBackups(cfg Config) {
 	// Keep only MaxBackups files
 	if len(backups) > cfg.MaxBackups {
 		for i := 0; i < len(backups)-cfg.MaxBackups; i++ {
-			os.Remove(filepath.Join(dir, backups[i].Name()))
+			_ = os.Remove(filepath.Join(dir, backups[i].Name()))
 		}
 	}
 }
 
-// Get returns the logger instance
+// Get returns the logger instance.
 func Get() *logrus.Logger {
 	if instance == nil {
 		// Fallback initialization with defaults
-		Initialize(Config{
+		_ = Initialize(Config{
 			Level:      "info",
 			FilePath:   "/var/log/cloud-update/cloud-update.log",
 			MaxSize:    10 * 1024 * 1024, // 10MB
@@ -161,12 +161,12 @@ func Get() *logrus.Logger {
 	return instance
 }
 
-// WithField creates an entry with a single field
+// WithField creates an entry with a single field.
 func WithField(key string, value interface{}) *logrus.Entry {
 	return Get().WithField(key, value)
 }
 
-// WithFields creates an entry with multiple fields
+// WithFields creates an entry with multiple fields.
 func WithFields(fields logrus.Fields) *logrus.Entry {
 	return Get().WithFields(fields)
 }
