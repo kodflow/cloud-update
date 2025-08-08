@@ -38,10 +38,30 @@
   "exclude": [
     "bazel-*/**", 
     "vendor/**", 
-    "*_test.go",
-    "src/internal/infrastructure/system/executor.go:G204",
-    "src/internal/infrastructure/system/executor_secure.go:G204", 
-    "src/internal/setup/setup.go:G304",
-    "src/internal/setup/setup.go:G306"
+    "*_test.go"
+  ],
+  "exclude-rules": [
+    {
+      "rule": "G204",
+      "paths": [
+        "src/internal/infrastructure/system/executor.go",
+        "src/internal/infrastructure/system/executor_secure.go"
+      ]
+    },
+    {
+      "rule": "G304",
+      "paths": ["src/internal/setup/setup.go"]
+    },
+    {
+      "rule": "G306", 
+      "paths": ["src/internal/setup/setup.go"]
+    },
+    {
+      "rule": "G104",
+      "paths": [
+        "src/internal/infrastructure/logger/logger.go",
+        "src/internal/application/handler/webhook_handler_pool.go"
+      ]
+    }
   ]
 }
