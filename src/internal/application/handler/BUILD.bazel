@@ -4,8 +4,6 @@ go_library(
     name = "handler",
     srcs = [
         "health_handler.go",
-        "webhook_handler.go",
-        "webhook_handler_improved.go",
         "webhook_handler_with_status.go",
     ],
     importpath = "github.com/kodflow/cloud-update/src/internal/application/handler",
