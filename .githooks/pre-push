@@ -21,7 +21,7 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo -e "${YELLOW}▶ Validating branch: ${BRANCH}${NC}"
 echo ""
 
-# Step 1: Format code
+# Step 1: Format code  
 echo -e "${YELLOW}▶ Step 1/4: Formatting code...${NC}"
 if make quality/format > /tmp/format.log 2>&1; then
     echo -e "${GREEN}✓ Code formatted${NC}"
