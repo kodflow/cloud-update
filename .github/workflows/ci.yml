@@ -64,6 +64,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
@@ -79,8 +87,20 @@ jobs:
             bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
             bazel-test-v3-${{ runner.os }}-
 
-      - name: Run unit tests
-        run: make test-unit
+      - name: Run unit tests with coverage
+        run: |
+          # Run tests with coverage using go test directly
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./src/...
+          
+          # Also run Bazel tests for verification
+          make test-unit
+
+      - name: Upload coverage to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 7
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -89,6 +109,40 @@ jobs:
           name: test-results
           path: bazel-testlogs/**/*.xml
           retention-days: 7
+
+  # SonarCloud analysis job
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: .
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=kodflow_cloud-update
+            -Dsonar.organization=kodflow
+            -Dsonar.go.coverage.reportPaths=coverage.out
 
   # Build job - waits for BOTH analyze and test to complete
   build:

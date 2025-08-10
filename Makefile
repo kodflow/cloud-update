@@ -46,6 +46,7 @@ help:
 	@echo 'Testing:'
 	@printf "  $(YELLOW)%-20s$(NC) %s\n" "test" "run all tests with quality checks"
 	@printf "  $(YELLOW)%-20s$(NC) %s\n" "test/unit" "run unit tests"
+	@printf "  $(YELLOW)%-20s$(NC) %s\n" "test/coverage" "run tests with coverage report"
 	@printf "  $(YELLOW)%-20s$(NC) %s\n" "test/e2e" "run end-to-end tests"
 	@printf "  $(YELLOW)%-20s$(NC) %s\n" "test/quick" "quick test without linting or E2E"
 	@echo ''
@@ -142,6 +143,15 @@ test/unit:
 		--test_output=errors \
 		--cache_test_results=no
 	@echo "$(GREEN)✓ Unit tests passed$(NC)"
+
+## test/coverage: run tests with coverage report
+.PHONY: test/coverage
+test/coverage:
+	@echo "$(YELLOW)▶ Running tests with coverage...$(NC)"
+	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./src/...
+	@echo "$(GREEN)✓ Coverage report generated: coverage.out$(NC)"
+	@echo "$(YELLOW)▶ Coverage summary:$(NC)"
+	@go tool cover -func=coverage.out | tail -1
 
 ## test/e2e: run end-to-end tests
 .PHONY: test/e2e
