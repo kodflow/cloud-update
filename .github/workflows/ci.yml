@@ -55,9 +55,9 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          # Run tests with coverage for SonarCloud
+          # Run tests with coverage for SonarCloud (exclude e2e tests)
           echo "Running Go tests with coverage..."
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./src/...
+          go test -v -race -coverprofile=coverage.out -covermode=atomic $(go list ./src/... | grep -v /e2e)
           
           echo "Coverage report generated successfully"
 
