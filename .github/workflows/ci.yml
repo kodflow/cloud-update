@@ -34,10 +34,13 @@ jobs:
           cache: true
 
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.15.0
         with:
+          # Avoid downloading Bazel every time
           bazelisk-cache: true
+          # Store build cache per workflow
           disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows
           repository-cache: true
 
       - name: Download dependencies
@@ -155,10 +158,13 @@ jobs:
           patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
 
       - name: Setup Bazel
-        uses: bazel-contrib/setup-bazel@0.8.5
+        uses: bazel-contrib/setup-bazel@0.15.0
         with:
+          # Avoid downloading Bazel every time
           bazelisk-cache: true
+          # Store build cache per workflow
           disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows
           repository-cache: true
 
       - name: Build all binaries with Bazel
