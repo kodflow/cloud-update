@@ -17,30 +17,79 @@ permissions:
   issues: write
 
 jobs:
-  # Analyze job - runs in parallel with test
-  analyze:
-    name: Analyze + Versioning
+  # Unit tests job - runs first
+  test:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.semver.outputs.next }}
-      current: ${{ steps.semver.outputs.current }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          # Avoid downloading Bazel every time
+          bazelisk-cache: true
+          # Store build cache per workflow
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows
+          repository-cache: true
+
+      - name: Download dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Run unit tests with coverage
+        run: |
+          # Run tests with coverage for SonarCloud (exclude e2e tests)
+          echo "Running Go tests with coverage..."
+          go test -v -race -coverprofile=coverage.out -covermode=atomic $(go list ./src/... | grep -v /e2e)
+          
+          echo "Coverage report generated successfully"
+
+      - name: Upload coverage to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 7
+
+      - name: Run Bazel tests
+        run: |
+          echo "Running Bazel tests..."
+          bazel test //src/internal/... //src/cmd/... \
+            --test_output=errors \
+            --cache_test_results=no
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: bazel-testlogs/**/*.xml
+          retention-days: 7
+        continue-on-error: true
+
+
+  # Analyze job - runs after test
+  analyze:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: What is next version?
-        id: semver
-        uses: ietf-tools/semver-action@v1
-        with:
-          token: ${{ github.token }}
-          branch: main
-          skipInvalidTags: true
-          noVersionBumpBehavior: patch
-          noNewCommitBehavior: current
-          fallbackTag: v0.0.0
-          patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -58,68 +107,87 @@ jobs:
           args: --timeout=5m ./src/...
           skip-cache: true
 
-  # Unit tests job - runs in parallel with analyze
-  test:
+  # SonarCloud job - runs after test in parallel with analyze
+  sonarcloud:
+    name: SonarCloud Analysis
     runs-on: ubuntu-latest
+    needs: test
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Bazelisk
-        uses: bazelbuild/setup-bazelisk@v3
         with:
-          bazelisk-version: '1.x'
+          fetch-depth: 0
 
-      - name: Cache Bazel
-        uses: actions/cache@v4
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.cache/bazel
-          key: bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
-          restore-keys: |
-            bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-test-v3-${{ runner.os }}-
+          name: coverage-report
+          path: .
 
-      - name: Run unit tests
-        run: make test-unit
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: bazel-testlogs/**/*.xml
-          retention-days: 7
-
-  # Build job - waits for BOTH analyze and test to complete
+  # Build job - waits for analyze and sonarcloud to complete and handles versioning
   build:
+    name: Build Binaries
     runs-on: ubuntu-latest
-    needs: [analyze, test]
+    needs: [analyze, sonarcloud]
+    outputs:
+      version: ${{ steps.semver.outputs.next }}
+      current: ${{ steps.semver.outputs.current }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Bazelisk
-        uses: bazelbuild/setup-bazelisk@v3
+      - name: What is next version?
+        id: semver
+        uses: ietf-tools/semver-action@v1
         with:
-          bazelisk-version: '1.x'
+          token: ${{ github.token }}
+          branch: main
+          skipInvalidTags: true
+          noVersionBumpBehavior: patch
+          noNewCommitBehavior: current
+          fallbackTag: v0.0.0
+          patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
+      
+      - name: Generate Changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v5
+        if: github.event_name != 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          preset: conventionalcommits
+          output-file: false
+          skip-version-file: true
+          skip-commit: true
+          skip-tag: true
+          git-push: false
+          skip-bump: true
 
-      - name: Cache Bazel
-        uses: actions/cache@v4
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
         with:
-          path: ~/.cache/bazel
-          key: bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
-          restore-keys: |
-            bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-build-v3-${{ runner.os }}-
+          # Avoid downloading Bazel every time
+          bazelisk-cache: true
+          # Store build cache per workflow
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows
+          repository-cache: true
 
       - name: Build all binaries with Bazel
         run: |
           mkdir -p .dist
           
-          # Use the version from analyze job
-          VERSION="${{ needs.analyze.outputs.version }}"
+          # Use the version from semver step
+          VERSION="${{ steps.semver.outputs.next }}"
           echo "Building with version: ${VERSION}"
           
           # Build for multiple platforms
@@ -169,6 +237,7 @@ jobs:
 
   # E2E tests - runs for both PR and main
   e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: build
     strategy:
@@ -222,7 +291,7 @@ jobs:
   # Release job - creates prerelease for PR or final release for main
   release:
     name: Create Release
-    needs: [analyze, build, e2e]
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     # Prevent concurrent releases on main branch to avoid version conflicts
     # Only apply concurrency control on main branch
@@ -278,62 +347,121 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # PR - Create prerelease notes
             cat << EOF > release_notes.md
-          ## Prerelease for PR #${{ github.event.pull_request.number }}
+          ## 🔬 Prerelease for PR #${{ github.event.pull_request.number }}
           
           This is a prerelease build for testing purposes.
           
-          ### Pull Request
-          - Title: ${{ github.event.pull_request.title }}
-          - Branch: ${{ github.head_ref }}
-          - Commit: ${{ github.sha }}
+          ### 📋 Pull Request Information
+          - **Title:** ${{ github.event.pull_request.title }}
+          - **Branch:** \`${{ github.head_ref }}\` → \`${{ github.base_ref }}\`
+          - **Commit:** [\`${GITHUB_SHA:0:7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          - **Author:** @${{ github.event.pull_request.user.login }}
           
-          ### Test Status
-          - Unit Tests: ✅ Passed
-          - Build: ✅ Completed  
-          - E2E Tests: ✅ Passed
+          ### ✅ Test Status
+          | Test Suite | Status |
+          |------------|--------|
+          | Unit Tests | ✅ Passed |
+          | Code Analysis | ✅ Passed |
+          | SonarCloud | ✅ Passed |
+          | Build | ✅ Completed |
+          | E2E Tests | ✅ Passed |
           
-          ### Downloads
-          Available binaries for all platforms with SHA256 checksums.
+          ### 📦 Available Downloads
+          Platform-specific binaries with SHA256 checksums are attached below.
           
-          **Note**: This is a prerelease and should not be used in production.
+          > ⚠️ **Note**: This is a prerelease and should not be used in production.
           EOF
           else
             # Main branch - Create final release notes
-            CURRENT_TAG="${{ needs.analyze.outputs.version }}"
-            PREVIOUS_TAG="${{ needs.analyze.outputs.current }}"
+            CURRENT_TAG="${{ needs.build.outputs.version }}"
+            PREVIOUS_TAG="${{ needs.build.outputs.current }}"
             
-            # Generate changelog between tags
-            if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
-              CHANGELOG="Initial release"
+            # Get release date
+            RELEASE_DATE=$(date -u +"%Y-%m-%d")
+            
+            # Use the changelog from the build job if available
+            CHANGELOG_BODY='${{ needs.build.outputs.changelog }}'
+            
+            if [ -z "$CHANGELOG_BODY" ] || [ "$CHANGELOG_BODY" == "null" ]; then
+              # Fallback to manual generation if changelog action wasn't run
+              # Get statistics
+              if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+                COMMIT_COUNT="Initial"
+                FILE_CHANGES="N/A"
+                CONTRIBUTORS="@${{ github.actor }}"
+                CHANGELOG_CONTENT="## Initial Release\n\n- Initial release of Cloud Update service"
+              else
+                COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD)
+                FILE_CHANGES=$(git diff --shortstat ${PREVIOUS_TAG}..HEAD | tail -1)
+                CONTRIBUTORS=$(git log --pretty=format:"@%an" ${PREVIOUS_TAG}..HEAD | sort -u | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+                
+                # Simple changelog generation
+                CHANGELOG_CONTENT="## Changes\n\n"
+                while IFS= read -r line; do
+                  HASH=$(echo "$line" | cut -d'|' -f1)
+                  MSG=$(echo "$line" | cut -d'|' -f2)
+                  if [[ "$MSG" != Merge* ]]; then
+                    CHANGELOG_CONTENT="${CHANGELOG_CONTENT}- ${MSG} [\`${HASH:0:7}\`](https://github.com/${{ github.repository }}/commit/${HASH})\n"
+                  fi
+                done < <(git log --pretty=format:"%H|%s" ${PREVIOUS_TAG}..HEAD --no-merges | head -20)
+              fi
             else
-              # Get commit messages since last tag
-              CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "^- Merge" || echo "")
-              
-              # Categorize changes
-              FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature):" | sed 's/^- feat:/- /' | sed 's/^- feature:/- /' || echo "")
-              FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix):" | sed 's/^- fix:/- /' | sed 's/^- bugfix:/- /' || echo "")
-              IMPROVEMENTS=$(echo "$CHANGELOG" | grep -E "^- (perf|improve|enhancement):" | sed 's/^- [^:]*:/- /' || echo "")
-              OTHER=$(echo "$CHANGELOG" | grep -vE "^- (feat|feature|fix|bugfix|perf|improve|enhancement):" || echo "")
+              # Use the generated changelog
+              CHANGELOG_CONTENT="$CHANGELOG_BODY"
+              # Get statistics
+              if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+                COMMIT_COUNT="Initial"
+                FILE_CHANGES="N/A"
+                CONTRIBUTORS="@${{ github.actor }}"
+              else
+                COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD)
+                FILE_CHANGES=$(git diff --shortstat ${PREVIOUS_TAG}..HEAD | tail -1)
+                CONTRIBUTORS=$(git log --pretty=format:"@%an" ${PREVIOUS_TAG}..HEAD | sort -u | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+              fi
             fi
             
             # Format release notes
             cat << EOF > release_notes.md
-          ## Release ${CURRENT_TAG}
+          # Release ${CURRENT_TAG}
           
-          ${FEATURES:+### 🚀 Features
-          $FEATURES
-          }
-          ${FIXES:+### 🐛 Bug Fixes
-          $FIXES
-          }
-          ${IMPROVEMENTS:+### ⚡ Performance & Improvements
-          $IMPROVEMENTS
-          }
-          ${OTHER:+### 🔧 Other Changes
-          $OTHER
-          }
+          📅 **Release Date:** ${RELEASE_DATE}
           
-          **Full Changelog**: ${PREVIOUS_TAG:+https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}}
+          ${CHANGELOG_CONTENT}
+          
+          ## 📊 Release Statistics
+          
+          - **Commits:** ${COMMIT_COUNT}
+          - **Changed Files:** ${FILE_CHANGES}
+          - **Contributors:** ${CONTRIBUTORS}
+          
+          ## 📦 Downloads
+          
+          | Platform | Architecture | Download |
+          |----------|-------------|----------|
+          | Linux | x86_64 | \`cloud-update-linux-amd64.tar.gz\` |
+          | Linux | ARM64 | \`cloud-update-linux-arm64.tar.gz\` |
+          | macOS | x86_64 | \`cloud-update-darwin-amd64.tar.gz\` |
+          | macOS | Apple Silicon | \`cloud-update-darwin-arm64.tar.gz\` |
+          | Windows | x86_64 | \`cloud-update-windows-amd64.zip\` |
+          
+          ### 🔐 Verification
+          
+          All binaries come with SHA256 checksums in \`checksums.sha256\`.
+          
+          To verify a download:
+          \`\`\`bash
+          sha256sum -c checksums.sha256
+          \`\`\`
+          
+          ## 🔗 Links
+          
+          - [Full Changelog](https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG:-v0.0.0}...${CURRENT_TAG})
+          - [Documentation](https://github.com/${{ github.repository }}#readme)
+          - [Issues](https://github.com/${{ github.repository }}/issues)
+          
+          ---
+          
+          <sub>Generated by Cloud Update CI/CD Pipeline</sub>
           EOF
           fi
 
@@ -341,7 +469,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # PR - Create/update prerelease
-            RELEASE_TAG="${{ needs.analyze.outputs.version }}-pr${{ github.event.pull_request.number }}"
+            RELEASE_TAG="${{ needs.build.outputs.version }}-pr${{ github.event.pull_request.number }}"
             
             # Check if release already exists
             if gh release view "${RELEASE_TAG}" &>/dev/null; then
@@ -378,8 +506,8 @@ jobs:
             fi
           else
             # Main branch - Create final release
-            VERSION="${{ needs.analyze.outputs.version }}"
-            CURRENT="${{ needs.analyze.outputs.current }}"
+            VERSION="${{ needs.build.outputs.version }}"
+            CURRENT="${{ needs.build.outputs.current }}"
             
             echo "Current version: $CURRENT"
             echo "Next version: $VERSION"
