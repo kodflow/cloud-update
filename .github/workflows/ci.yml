@@ -43,6 +43,10 @@ jobs:
           args: --timeout=5m ./src/...
           skip-cache: true
 
+      - name: Download dependencies
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        run: go mod download
+
       - name: Run tests with coverage for SonarCloud
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
         run: |
@@ -82,10 +86,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          key: bazel-test-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
           restore-keys: |
-            bazel-test-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-test-v3-${{ runner.os }}-
+            bazel-test-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-test-v4-${{ runner.os }}-
+
+      - name: Download dependencies
+        run: go mod download
 
       - name: Run unit tests with coverage
         run: |
@@ -145,10 +152,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          key: bazel-build-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
           restore-keys: |
-            bazel-build-v3-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-build-v3-${{ runner.os }}-
+            bazel-build-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-build-v4-${{ runner.os }}-
 
       - name: Build all binaries with Bazel
         run: |
