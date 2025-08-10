@@ -42,23 +42,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-test-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          key: bazel-test-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
           restore-keys: |
-            bazel-test-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-test-v4-${{ runner.os }}-
+            bazel-test-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-test-v5-${{ runner.os }}-
+        continue-on-error: true
 
       - name: Download dependencies
-        run: go mod download
+        run: |
+          go mod download
+          go mod verify
 
       - name: Run unit tests with coverage
         run: |
           # Run tests with coverage for SonarCloud
+          echo "Running Go tests with coverage..."
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./src/...
           
-          # Also run Bazel tests for additional validation
-          bazel test //src/internal/... //src/cmd/... \
-            --test_output=errors \
-            --cache_test_results=no || true
+          echo "Coverage report generated successfully"
 
       - name: Upload coverage to artifact
         uses: actions/upload-artifact@v4
@@ -67,6 +68,13 @@ jobs:
           path: coverage.out
           retention-days: 7
 
+      - name: Run Bazel tests
+        run: |
+          echo "Running Bazel tests..."
+          bazel test //src/internal/... //src/cmd/... \
+            --test_output=errors \
+            --cache_test_results=no
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -74,6 +82,7 @@ jobs:
           name: test-results
           path: bazel-testlogs/**/*.xml
           retention-days: 7
+        continue-on-error: true
 
 
   # Analyze job - runs after test
@@ -161,10 +170,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          key: bazel-build-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
+          key: bazel-build-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
           restore-keys: |
-            bazel-build-v4-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-build-v4-${{ runner.os }}-
+            bazel-build-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+            bazel-build-v5-${{ runner.os }}-
+        continue-on-error: true
 
       - name: Build all binaries with Bazel
         run: |
