@@ -38,15 +38,8 @@ jobs:
         with:
           bazelisk-version: '1.x'
 
-      - name: Cache Bazel
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel
-          key: bazel-test-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
-          restore-keys: |
-            bazel-test-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-test-v5-${{ runner.os }}-
-        continue-on-error: true
+      # Skip Bazel cache due to persistent 400 errors
+      # Cache will be recreated fresh each run
 
       - name: Download dependencies
         run: |
@@ -130,10 +123,11 @@ jobs:
           path: .
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
   # Build job - waits for analyze and sonarcloud to complete and handles versioning
   build:
@@ -166,15 +160,8 @@ jobs:
         with:
           bazelisk-version: '1.x'
 
-      - name: Cache Bazel
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel
-          key: bazel-build-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'WORKSPACE', 'BUILD.bazel') }}
-          restore-keys: |
-            bazel-build-v5-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-            bazel-build-v5-${{ runner.os }}-
-        continue-on-error: true
+      # Skip Bazel cache due to persistent 400 errors
+      # Cache will be recreated fresh each run
 
       - name: Build all binaries with Bazel
         run: |
