@@ -1,8 +1,21 @@
 # Cloud Update
 
-[![CI Status](https://github.com/kodflow/cloud-update/actions/workflows/ci.yml/badge.svg)](https://github.com/kodflow/cloud-update/actions)
+[![Reference](https://pkg.go.dev/badge/github.com/kodflow/cloud-update.svg)](https://pkg.go.dev/github.com/kodflow/cloud-update)
+[![Latest Stable Version](https://img.shields.io/github/v/tag/kodflow/cloud-update?label=version)](https://github.com/kodflow/cloud-update/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/kodflow/cloud-update/ci.yml?label=CI)](https://github.com/kodflow/cloud-update/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=bugs)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=coverage)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=kodflow_cloud-update&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=kodflow_cloud-update)
 
 **Cloud Update** est un agent léger de mise à jour système conçu pour les environnements cloud-init. Il permet
 d'orchestrer des mises à jour système déclenchées par webhook avec support multi-distribution Linux.
@@ -240,7 +253,7 @@ Métriques Prometheus (si activé).
 
 ## 🏗️ Architecture
 
-```
+```text
 cloud-update/
 ├── src/
 │   ├── cmd/cloud-update/       # Point d'entrée
