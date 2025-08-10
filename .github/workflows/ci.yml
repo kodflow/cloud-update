@@ -139,6 +139,7 @@ jobs:
     outputs:
       version: ${{ steps.semver.outputs.next }}
       current: ${{ steps.semver.outputs.current }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -156,6 +157,20 @@ jobs:
           noNewCommitBehavior: current
           fallbackTag: v0.0.0
           patchList: "vendor, update, fix, bugfix, perf, refactor, test, tests, chore, ci, docs, improve, style, build, revert, improvement, enhancement, coverage, clean"
+      
+      - name: Generate Changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v5
+        if: github.event_name != 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          preset: conventionalcommits
+          output-file: false
+          skip-version-file: true
+          skip-commit: true
+          skip-tag: true
+          git-push: false
+          skip-bump: true
 
       - name: Setup Bazel
         uses: bazel-contrib/setup-bazel@0.15.0
@@ -332,62 +347,121 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # PR - Create prerelease notes
             cat << EOF > release_notes.md
-          ## Prerelease for PR #${{ github.event.pull_request.number }}
+          ## 🔬 Prerelease for PR #${{ github.event.pull_request.number }}
           
           This is a prerelease build for testing purposes.
           
-          ### Pull Request
-          - Title: ${{ github.event.pull_request.title }}
-          - Branch: ${{ github.head_ref }}
-          - Commit: ${{ github.sha }}
+          ### 📋 Pull Request Information
+          - **Title:** ${{ github.event.pull_request.title }}
+          - **Branch:** \`${{ github.head_ref }}\` → \`${{ github.base_ref }}\`
+          - **Commit:** [\`${GITHUB_SHA:0:7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          - **Author:** @${{ github.event.pull_request.user.login }}
           
-          ### Test Status
-          - Unit Tests: ✅ Passed
-          - Build: ✅ Completed  
-          - E2E Tests: ✅ Passed
+          ### ✅ Test Status
+          | Test Suite | Status |
+          |------------|--------|
+          | Unit Tests | ✅ Passed |
+          | Code Analysis | ✅ Passed |
+          | SonarCloud | ✅ Passed |
+          | Build | ✅ Completed |
+          | E2E Tests | ✅ Passed |
           
-          ### Downloads
-          Available binaries for all platforms with SHA256 checksums.
+          ### 📦 Available Downloads
+          Platform-specific binaries with SHA256 checksums are attached below.
           
-          **Note**: This is a prerelease and should not be used in production.
+          > ⚠️ **Note**: This is a prerelease and should not be used in production.
           EOF
           else
             # Main branch - Create final release notes
             CURRENT_TAG="${{ needs.build.outputs.version }}"
             PREVIOUS_TAG="${{ needs.build.outputs.current }}"
             
-            # Generate changelog between tags
-            if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
-              CHANGELOG="Initial release"
+            # Get release date
+            RELEASE_DATE=$(date -u +"%Y-%m-%d")
+            
+            # Use the changelog from the build job if available
+            CHANGELOG_BODY='${{ needs.build.outputs.changelog }}'
+            
+            if [ -z "$CHANGELOG_BODY" ] || [ "$CHANGELOG_BODY" == "null" ]; then
+              # Fallback to manual generation if changelog action wasn't run
+              # Get statistics
+              if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+                COMMIT_COUNT="Initial"
+                FILE_CHANGES="N/A"
+                CONTRIBUTORS="@${{ github.actor }}"
+                CHANGELOG_CONTENT="## Initial Release\n\n- Initial release of Cloud Update service"
+              else
+                COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD)
+                FILE_CHANGES=$(git diff --shortstat ${PREVIOUS_TAG}..HEAD | tail -1)
+                CONTRIBUTORS=$(git log --pretty=format:"@%an" ${PREVIOUS_TAG}..HEAD | sort -u | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+                
+                # Simple changelog generation
+                CHANGELOG_CONTENT="## Changes\n\n"
+                while IFS= read -r line; do
+                  HASH=$(echo "$line" | cut -d'|' -f1)
+                  MSG=$(echo "$line" | cut -d'|' -f2)
+                  if [[ "$MSG" != Merge* ]]; then
+                    CHANGELOG_CONTENT="${CHANGELOG_CONTENT}- ${MSG} [\`${HASH:0:7}\`](https://github.com/${{ github.repository }}/commit/${HASH})\n"
+                  fi
+                done < <(git log --pretty=format:"%H|%s" ${PREVIOUS_TAG}..HEAD --no-merges | head -20)
+              fi
             else
-              # Get commit messages since last tag
-              CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "^- Merge" || echo "")
-              
-              # Categorize changes
-              FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature):" | sed 's/^- feat:/- /' | sed 's/^- feature:/- /' || echo "")
-              FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix):" | sed 's/^- fix:/- /' | sed 's/^- bugfix:/- /' || echo "")
-              IMPROVEMENTS=$(echo "$CHANGELOG" | grep -E "^- (perf|improve|enhancement):" | sed 's/^- [^:]*:/- /' || echo "")
-              OTHER=$(echo "$CHANGELOG" | grep -vE "^- (feat|feature|fix|bugfix|perf|improve|enhancement):" || echo "")
+              # Use the generated changelog
+              CHANGELOG_CONTENT="$CHANGELOG_BODY"
+              # Get statistics
+              if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "null" ] || [ "$PREVIOUS_TAG" == "v0.0.0" ]; then
+                COMMIT_COUNT="Initial"
+                FILE_CHANGES="N/A"
+                CONTRIBUTORS="@${{ github.actor }}"
+              else
+                COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD)
+                FILE_CHANGES=$(git diff --shortstat ${PREVIOUS_TAG}..HEAD | tail -1)
+                CONTRIBUTORS=$(git log --pretty=format:"@%an" ${PREVIOUS_TAG}..HEAD | sort -u | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+              fi
             fi
             
             # Format release notes
             cat << EOF > release_notes.md
-          ## Release ${CURRENT_TAG}
+          # Release ${CURRENT_TAG}
           
-          ${FEATURES:+### 🚀 Features
-          $FEATURES
-          }
-          ${FIXES:+### 🐛 Bug Fixes
-          $FIXES
-          }
-          ${IMPROVEMENTS:+### ⚡ Performance & Improvements
-          $IMPROVEMENTS
-          }
-          ${OTHER:+### 🔧 Other Changes
-          $OTHER
-          }
+          📅 **Release Date:** ${RELEASE_DATE}
           
-          **Full Changelog**: ${PREVIOUS_TAG:+https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}}
+          ${CHANGELOG_CONTENT}
+          
+          ## 📊 Release Statistics
+          
+          - **Commits:** ${COMMIT_COUNT}
+          - **Changed Files:** ${FILE_CHANGES}
+          - **Contributors:** ${CONTRIBUTORS}
+          
+          ## 📦 Downloads
+          
+          | Platform | Architecture | Download |
+          |----------|-------------|----------|
+          | Linux | x86_64 | \`cloud-update-linux-amd64.tar.gz\` |
+          | Linux | ARM64 | \`cloud-update-linux-arm64.tar.gz\` |
+          | macOS | x86_64 | \`cloud-update-darwin-amd64.tar.gz\` |
+          | macOS | Apple Silicon | \`cloud-update-darwin-arm64.tar.gz\` |
+          | Windows | x86_64 | \`cloud-update-windows-amd64.zip\` |
+          
+          ### 🔐 Verification
+          
+          All binaries come with SHA256 checksums in \`checksums.sha256\`.
+          
+          To verify a download:
+          \`\`\`bash
+          sha256sum -c checksums.sha256
+          \`\`\`
+          
+          ## 🔗 Links
+          
+          - [Full Changelog](https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG:-v0.0.0}...${CURRENT_TAG})
+          - [Documentation](https://github.com/${{ github.repository }}#readme)
+          - [Issues](https://github.com/${{ github.repository }}/issues)
+          
+          ---
+          
+          <sub>Generated by Cloud Update CI/CD Pipeline</sub>
           EOF
           fi
 
