@@ -17,34 +17,7 @@ permissions:
   issues: write
 
 jobs:
-  # Analyze job - runs in parallel with test
-  analyze:
-    name: Code Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-          cache-dependency-path: |
-            go.sum
-            go.mod
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m ./src/...
-          skip-cache: true
-
-
-  # Unit tests job - runs in parallel with analyze
+  # Unit tests job - runs first
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -52,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -102,7 +75,35 @@ jobs:
           path: bazel-testlogs/**/*.xml
           retention-days: 7
 
-  # SonarCloud job - runs after test to get coverage
+
+  # Analyze job - runs after test
+  analyze:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            go.mod
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m ./src/...
+          skip-cache: true
+
+  # SonarCloud job - runs after test in parallel with analyze
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
@@ -125,11 +126,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Build job - waits for analyze and test to complete and handles versioning
+  # Build job - waits for analyze and sonarcloud to complete and handles versioning
   build:
     name: Build Binaries
     runs-on: ubuntu-latest
-    needs: [analyze, test]
+    needs: [analyze, sonarcloud]
     outputs:
       version: ${{ steps.semver.outputs.next }}
       current: ${{ steps.semver.outputs.current }}
