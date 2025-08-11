@@ -189,14 +189,14 @@ func TestWorkerPool_SubmitWait(t *testing.T) {
 	})
 
 	// Now SubmitWait should wait and eventually succeed when there's space
-	var taskExecuted bool
+	taskExecuted := make(chan bool, 1)
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		close(taskContinue) // Allow the blocking task to complete
 	}()
 
 	err := pool.SubmitWait(func(_ context.Context) {
-		taskExecuted = true
+		taskExecuted <- true
 	}, 200*time.Millisecond)
 
 	if err != nil {
@@ -204,8 +204,10 @@ func TestWorkerPool_SubmitWait(t *testing.T) {
 	}
 
 	// Give some time for the task to execute
-	time.Sleep(100 * time.Millisecond)
-	if !taskExecuted {
+	select {
+	case <-taskExecuted:
+		// Task was executed successfully
+	case <-time.After(100 * time.Millisecond):
 		t.Error("Task submitted with SubmitWait was not executed")
 	}
 }

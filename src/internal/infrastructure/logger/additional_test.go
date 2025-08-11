@@ -41,10 +41,13 @@ func TestLogger_MonitorLogRotation_Coverage(t *testing.T) {
 	}
 
 	// Give time for monitoring to start
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Now close to stop monitoring
 	Close()
+
+	// Give a bit more time to ensure clean shutdown
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify log file was created
 	if _, err := os.Stat(logFile); err != nil {
