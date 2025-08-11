@@ -130,9 +130,10 @@ deps:
 # TESTING
 # ==================================================================================== #
 
-# Load test environment variables
-include .env.test
-export
+# Set default test environment variables
+export E2E_SECRET ?= test-secret-key-for-e2e-testing-purposes-only
+export CLOUD_UPDATE_SECRET ?= test-secret-key-for-e2e-testing-purposes-only
+export CLOUD_UPDATE_LOG_LEVEL ?= debug
 
 ## test: run all tests with quality checks
 .PHONY: test

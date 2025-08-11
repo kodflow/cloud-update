@@ -15,17 +15,10 @@ fi
 
 DISTRO=$1
 
-# Load environment variables
-if [ -f .env.test ]; then
-    set -o allexport
-    source .env.test
-    set +o allexport
-else
-    # Set default values if .env.test doesn't exist
-    export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
-    export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
-    export CLOUD_UPDATE_LOG_LEVEL="debug"
-fi
+# Set default environment variables if not already set
+export E2E_SECRET="${E2E_SECRET:-test-secret-key-for-e2e-testing-purposes-only}"
+export CLOUD_UPDATE_SECRET="${CLOUD_UPDATE_SECRET:-test-secret-key-for-e2e-testing-purposes-only}"
+export CLOUD_UPDATE_LOG_LEVEL="${CLOUD_UPDATE_LOG_LEVEL:-debug}"
 
 # Test configuration
 COMPOSE_FILE="src/test/e2e/docker-compose.yml"

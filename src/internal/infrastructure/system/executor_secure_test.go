@@ -34,94 +34,7 @@ exec "$@"
 	os.Setenv("PATH", tmpDir+":"+originalPath)
 }
 
-// MockExecutor provides a mock implementation for testing.
-type MockExecutor struct {
-	commands       []MockCommand
-	commandsMutex  sync.RWMutex
-	shouldFail     bool
-	failureMessage string
-	shouldTimeout  bool
-	distribution   Distribution
-	privilegeCmd   string
-}
-
-type MockCommand struct {
-	Command string
-	Args    []string
-	Output  string
-	Error   error
-}
-
-func NewMockExecutor() *MockExecutor {
-	return &MockExecutor{
-		commands:     make([]MockCommand, 0),
-		distribution: DistroUbuntu,
-		privilegeCmd: "sudo",
-	}
-}
-
-func (m *MockExecutor) AddCommand(command string, args []string, output string, err error) {
-	m.commandsMutex.Lock()
-	defer m.commandsMutex.Unlock()
-
-	m.commands = append(m.commands, MockCommand{
-		Command: command,
-		Args:    args,
-		Output:  output,
-		Error:   err,
-	})
-}
-
-func (m *MockExecutor) SetFailure(shouldFail bool, message string) {
-	m.shouldFail = shouldFail
-	m.failureMessage = message
-}
-
-func (m *MockExecutor) SetTimeout(shouldTimeout bool) {
-	m.shouldTimeout = shouldTimeout
-}
-
-func (m *MockExecutor) SetDistribution(distro Distribution) {
-	m.distribution = distro
-}
-
-func (m *MockExecutor) SetPrivilegeCommand(cmd string) {
-	m.privilegeCmd = cmd
-}
-
-func (m *MockExecutor) RunCloudInit() error {
-	if m.shouldFail {
-		return fmt.Errorf("%s", m.failureMessage)
-	}
-	return nil
-}
-
-func (m *MockExecutor) Reboot() error {
-	if m.shouldFail {
-		return fmt.Errorf("%s", m.failureMessage)
-	}
-	return nil
-}
-
-func (m *MockExecutor) UpdateSystem() error {
-	if m.shouldFail {
-		return fmt.Errorf("%s", m.failureMessage)
-	}
-	return nil
-}
-
-func (m *MockExecutor) DetectDistribution() Distribution {
-	return m.distribution
-}
-
-func (m *MockExecutor) GetExecutedCommands() []MockCommand {
-	m.commandsMutex.RLock()
-	defer m.commandsMutex.RUnlock()
-
-	result := make([]MockCommand, len(m.commands))
-	copy(result, m.commands)
-	return result
-}
+// The MockExecutor is now provided by executor_mock.go
 
 // mockSecureExecutorWithDistro wraps SecureExecutor to override DetectDistribution.
 type mockSecureExecutorWithDistro struct {
@@ -250,10 +163,7 @@ exec "$@"
 }
 
 func TestSecureExecutor_Reboot(t *testing.T) {
-	// Skip this test in CI to prevent attempting actual reboot
-	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("Skipping reboot test in CI environment")
-	}
+	// This test requires mocked commands to prevent actual reboot attempts
 
 	tests := []struct {
 		name         string
@@ -290,10 +200,7 @@ func TestSecureExecutor_Reboot(t *testing.T) {
 }
 
 func TestSecureExecutor_UpdateSystem(t *testing.T) {
-	// Skip this test in CI environment as it tries to run real system commands
-	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("Skipping test in CI environment - requires mock implementation")
-	}
+	// This test uses mocked commands to avoid running real system commands
 
 	tests := []struct {
 		name         string
@@ -768,10 +675,7 @@ func TestSecureExecutor_LongRunningCommand(t *testing.T) {
 
 // Test interface compliance.
 func TestSecureExecutor_ImplementsExecutorInterface(t *testing.T) {
-	// Skip reboot-related calls in CI to prevent attempting actual reboot
-	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("Skipping interface test with reboot in CI environment")
-	}
+	// This test verifies interface compliance
 
 	var executor Executor = &SecureExecutor{}
 

@@ -4,6 +4,7 @@ go_library(
     name = "system",
     srcs = [
         "executor.go",
+        "executor_mock.go",
         "executor_secure.go",
         "executor_timeout.go",
     ],
@@ -24,8 +25,4 @@ go_test(
     ],
     embed = [":system"],
     timeout = "short",
-    env = {
-        "CI": "true",
-        "GITHUB_ACTIONS": "true",
-    },
 )

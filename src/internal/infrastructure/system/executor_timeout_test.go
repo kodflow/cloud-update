@@ -3,7 +3,6 @@ package system
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -242,10 +241,7 @@ func TestGetTimeoutForDistro(t *testing.T) {
 }
 
 func TestExecutorWithTimeout_runUpdate(t *testing.T) {
-	// Skip this test in CI environment as it tries to run real system commands
-	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("Skipping test in CI environment - requires system command execution")
-	}
+	// This test uses mocked commands to avoid running real system commands
 
 	tests := []struct {
 		name        string
@@ -334,10 +330,7 @@ func TestExecutorWithTimeout_runUpdate(t *testing.T) {
 }
 
 func TestExecutorWithTimeout_runUpgrade(t *testing.T) {
-	// Skip this test in CI environment as it tries to run real system commands
-	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
-		t.Skip("Skipping test in CI environment - requires system command execution")
-	}
+	// This test uses mocked commands to avoid running real system commands
 
 	tests := []struct {
 		name        string

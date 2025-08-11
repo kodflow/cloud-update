@@ -271,11 +271,6 @@ jobs:
 
       - name: Run E2E test for ${{ matrix.init_system.name }}
         run: |
-          if [ -f .env.test ]; then
-            set -o allexport
-            source .env.test
-            set +o allexport
-          fi
           # Export required environment variables
           export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
           export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
