@@ -90,9 +90,10 @@ func TestServiceInstaller_Setup_FullSuccess(t *testing.T) {
 	for _, command := range commands {
 		if command.Name == "systemctl" {
 			if len(command.Args) > 0 {
-				if command.Args[0] == "daemon-reload" {
+				switch command.Args[0] {
+				case "daemon-reload":
 					hasSystemctlReload = true
-				} else if command.Args[0] == "enable" {
+				case "enable":
 					hasSystemctlEnable = true
 				}
 			}

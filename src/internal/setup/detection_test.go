@@ -152,7 +152,7 @@ func validateSecretResult(t *testing.T, result string, validateLen bool, expecte
 // validateHexCharacters checks if the secret contains only valid hex characters.
 func validateHexCharacters(t *testing.T, secret string) {
 	for _, char := range secret {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+		if char < '0' || (char > '9' && char < 'a') || char > 'f' {
 			t.Errorf("Secret contains invalid hex character: %c", char)
 			break
 		}

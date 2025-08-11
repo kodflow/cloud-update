@@ -148,7 +148,7 @@ func TestGenerateRandomSecret_Coverage(t *testing.T) {
 			// Verify it's valid hex (if non-empty)
 			if len(result) > 0 {
 				for _, char := range result {
-					if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+					if char < '0' || (char > '9' && char < 'a') || char > 'f' {
 						t.Errorf("Result contains invalid hex character: %c", char)
 						break
 					}

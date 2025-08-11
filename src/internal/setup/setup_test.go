@@ -448,7 +448,7 @@ func TestGenerateSecret(t *testing.T) {
 
 	// Should be valid hex
 	for _, char := range secret {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+		if char < '0' || (char > '9' && char < 'a') || char > 'f' {
 			t.Errorf("generateSecret() contains invalid hex character: %c", char)
 		}
 	}
