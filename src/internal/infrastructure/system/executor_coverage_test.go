@@ -26,7 +26,7 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 				f.Close()
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-alpine-release")
+				_ = os.Remove("/tmp/test-alpine-release")
 			},
 			expectError: false,
 		},
@@ -35,10 +35,10 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create os-release with debian
 				content := "ID=debian\nNAME=Debian\n"
-				os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
+				_ = os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-os-release")
+				_ = os.Remove("/tmp/test-os-release")
 			},
 			expectError: false,
 		},
@@ -47,10 +47,10 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create os-release with rhel
 				content := "ID=rhel\nNAME=Red Hat Enterprise Linux\n"
-				os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
+				_ = os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-os-release")
+				_ = os.Remove("/tmp/test-os-release")
 			},
 			expectError: false,
 		},
@@ -59,10 +59,10 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create os-release with rhel
 				content := "ID=rhel\nNAME=Red Hat Enterprise Linux\n"
-				os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
+				_ = os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-os-release")
+				_ = os.Remove("/tmp/test-os-release")
 			},
 			expectError: false,
 		},
@@ -71,10 +71,10 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create os-release with suse
 				content := "ID=opensuse\nNAME=openSUSE\n"
-				os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
+				_ = os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-os-release")
+				_ = os.Remove("/tmp/test-os-release")
 			},
 			expectError: false,
 		},
@@ -83,10 +83,10 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create os-release with arch
 				content := "ID=arch\nNAME=Arch Linux\n"
-				os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
+				_ = os.WriteFile("/tmp/test-os-release", []byte(content), 0644)
 			},
 			cleanupFiles: func() {
-				os.Remove("/tmp/test-os-release")
+				_ = os.Remove("/tmp/test-os-release")
 			},
 			expectError: false,
 		},
@@ -306,7 +306,7 @@ func TestSecureExecutor_UpdateSystem_Coverage(t *testing.T) {
 	t.Run("SUSE path", func(t *testing.T) {
 		// Create temp os-release file with SUSE
 		content := "ID=opensuse\nNAME=openSUSE\n"
-		os.WriteFile("/tmp/test-os-release-secure", []byte(content), 0644)
+		_ = os.WriteFile("/tmp/test-os-release-secure", []byte(content), 0644)
 		defer os.Remove("/tmp/test-os-release-secure")
 
 		e := &SecureExecutor{
@@ -433,7 +433,7 @@ func TestExecutor_SpecificPaths_Coverage(t *testing.T) {
 	t.Run("UpdateSystem SUSE first command error", func(t *testing.T) {
 		// Create temp os-release file with SUSE
 		content := "ID=opensuse\nNAME=openSUSE\n"
-		os.WriteFile("/tmp/test-os-release-suse", []byte(content), 0644)
+		_ = os.WriteFile("/tmp/test-os-release-suse", []byte(content), 0644)
 		defer os.Remove("/tmp/test-os-release-suse")
 
 		e := &DefaultExecutor{}

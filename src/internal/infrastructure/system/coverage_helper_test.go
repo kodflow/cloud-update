@@ -51,7 +51,7 @@ func TestDetectDistribution_WithTempFiles(t *testing.T) {
 	// Test os-release file reading
 	t.Run("Ubuntu via os-release file", func(t *testing.T) {
 		// Remove alpine-release if it exists
-		os.Remove(filepath.Join(etcDir, "alpine-release"))
+		_ = os.Remove(filepath.Join(etcDir, "alpine-release"))
 
 		osReleaseFile := filepath.Join(etcDir, "os-release")
 		ubuntuContent := `NAME="Ubuntu"
@@ -79,8 +79,8 @@ PRETTY_NAME="Ubuntu 22.04.3 LTS"`
 	// Test debian_version fallback
 	t.Run("Debian via debian_version fallback", func(t *testing.T) {
 		// Clean up previous files
-		os.Remove(filepath.Join(etcDir, "alpine-release"))
-		os.Remove(filepath.Join(etcDir, "os-release"))
+		_ = os.Remove(filepath.Join(etcDir, "alpine-release"))
+		_ = os.Remove(filepath.Join(etcDir, "os-release"))
 
 		debianVersionFile := filepath.Join(etcDir, "debian_version")
 		if err := os.WriteFile(debianVersionFile, []byte("11.7\n"), 0644); err != nil {
@@ -102,9 +102,9 @@ PRETTY_NAME="Ubuntu 22.04.3 LTS"`
 	// Test redhat-release fallback
 	t.Run("RHEL via redhat-release fallback", func(t *testing.T) {
 		// Clean up previous files
-		os.Remove(filepath.Join(etcDir, "alpine-release"))
-		os.Remove(filepath.Join(etcDir, "os-release"))
-		os.Remove(filepath.Join(etcDir, "debian_version"))
+		_ = os.Remove(filepath.Join(etcDir, "alpine-release"))
+		_ = os.Remove(filepath.Join(etcDir, "os-release"))
+		_ = os.Remove(filepath.Join(etcDir, "debian_version"))
 
 		redhatReleaseFile := filepath.Join(etcDir, "redhat-release")
 		if err := os.WriteFile(redhatReleaseFile, []byte("Red Hat Enterprise Linux release 9.0\n"), 0644); err != nil {

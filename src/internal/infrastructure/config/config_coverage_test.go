@@ -11,7 +11,7 @@ import (
 func TestLoadWithoutSecret(t *testing.T) {
 	if os.Getenv("TEST_LOAD_FATAL") == "1" {
 		// Clear the secret env var
-		os.Unsetenv("CLOUD_UPDATE_SECRET")
+		_ = os.Unsetenv("CLOUD_UPDATE_SECRET")
 		Load()
 		return
 	}
@@ -50,17 +50,17 @@ func TestLoadWithAllEnvVars(t *testing.T) {
 	origLogFile := os.Getenv("CLOUD_UPDATE_LOG_FILE")
 
 	// Set test env vars
-	os.Setenv("CLOUD_UPDATE_PORT", "8888")
-	os.Setenv("CLOUD_UPDATE_SECRET", "test-secret")
-	os.Setenv("CLOUD_UPDATE_LOG_LEVEL", "debug")
-	os.Setenv("CLOUD_UPDATE_LOG_FILE", "/tmp/test.log")
+	_ = os.Setenv("CLOUD_UPDATE_PORT", "8888")
+	_ = os.Setenv("CLOUD_UPDATE_SECRET", "test-secret")
+	_ = os.Setenv("CLOUD_UPDATE_LOG_LEVEL", "debug")
+	_ = os.Setenv("CLOUD_UPDATE_LOG_FILE", "/tmp/test.log")
 
 	defer func() {
 		// Restore original env vars
-		os.Setenv("CLOUD_UPDATE_PORT", origPort)
-		os.Setenv("CLOUD_UPDATE_SECRET", origSecret)
-		os.Setenv("CLOUD_UPDATE_LOG_LEVEL", origLogLevel)
-		os.Setenv("CLOUD_UPDATE_LOG_FILE", origLogFile)
+		_ = os.Setenv("CLOUD_UPDATE_PORT", origPort)
+		_ = os.Setenv("CLOUD_UPDATE_SECRET", origSecret)
+		_ = os.Setenv("CLOUD_UPDATE_LOG_LEVEL", origLogLevel)
+		_ = os.Setenv("CLOUD_UPDATE_LOG_FILE", origLogFile)
 	}()
 
 	config := Load()

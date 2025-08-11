@@ -23,8 +23,8 @@ func createTempCertFiles(t *testing.T, valid bool) (certFile, keyFile string) {
 
 	if !valid {
 		// Create invalid cert files with garbage content
-		os.WriteFile(certFile, []byte("invalid cert content"), 0600)
-		os.WriteFile(keyFile, []byte("invalid key content"), 0600)
+		_ = os.WriteFile(certFile, []byte("invalid cert content"), 0600)
+		_ = os.WriteFile(keyFile, []byte("invalid key content"), 0600)
 		return certFile, keyFile
 	}
 
@@ -57,23 +57,23 @@ func createTempCertFiles(t *testing.T, valid bool) (certFile, keyFile string) {
 	if err != nil {
 		t.Fatalf("Failed to create cert file: %v", err)
 	}
-	defer certOut.Close()
+	defer func() { _ = certOut.Close() }()
 
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	_ = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	// Write private key
 	keyOut, err := os.Create(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to create key file: %v", err)
 	}
-	defer keyOut.Close()
+	defer func() { _ = keyOut.Close() }()
 
 	privKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		t.Fatalf("Failed to marshal private key: %v", err)
 	}
 
-	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyDER})
+	_ = pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyDER})
 
 	return certFile, keyFile
 }

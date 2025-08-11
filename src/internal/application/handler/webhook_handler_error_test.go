@@ -27,7 +27,7 @@ func TestWebhookHandlerWithPool_HandleWebhook_ReadError(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
 	pool := worker.NewPool(2, 10)
-	defer pool.Shutdown(time.Second)
+	defer func() { _ = pool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, pool)
 
@@ -55,7 +55,7 @@ func TestWebhookHandlerWithPool_processActionWithContext_LoggingPaths(t *testing
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
 	pool := worker.NewPool(2, 10)
-	defer pool.Shutdown(time.Second)
+	defer func() { _ = pool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, pool)
 
@@ -159,7 +159,7 @@ func TestWebhookHandlerWithPool_HandleJobStatus_ErrorWriting(t *testing.T) {
 	mockAction := &mockActionService{}
 	mockAuth := &mockAuthenticator{shouldValidate: true}
 	pool := worker.NewPool(2, 10)
-	defer pool.Shutdown(time.Second)
+	defer func() { _ = pool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, pool)
 

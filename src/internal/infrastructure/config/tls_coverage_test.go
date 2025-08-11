@@ -36,7 +36,7 @@ func TestSetupCertificateDirectoryCoverage(t *testing.T) {
 		if _, err := os.Stat(readmePath); err == nil {
 			t.Log("README.md was successfully created")
 			// Clean up if we have permission
-			os.Remove(readmePath)
+			_ = os.Remove(readmePath)
 		}
 	}
 }

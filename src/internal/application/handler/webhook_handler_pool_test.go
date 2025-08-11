@@ -69,7 +69,7 @@ func TestNewWebhookHandlerWithPool(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -160,7 +160,7 @@ func TestWebhookHandlerWithPool_HandleWebhook_BasicTests(t *testing.T) {
 			mockAction := &mockActionServicePool{}
 			mockAuth := &mockAuthenticatorPool{shouldValidate: tt.authenticated}
 			mockPool := worker.NewPool(2, 10)
-			defer mockPool.Shutdown(time.Second)
+			defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 			handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -197,7 +197,7 @@ func TestWebhookHandlerWithPool_HandleWebhook_JobConflict(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -240,7 +240,7 @@ func TestWebhookHandlerWithPool_processActionWithContext_Success(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -266,7 +266,7 @@ func TestWebhookHandlerWithPool_processActionWithContext_ContextCancelled(t *tes
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -293,7 +293,7 @@ func TestWebhookHandlerWithPool_processActionWithContext_Panic(t *testing.T) {
 	mockAction.setShouldPanic(true)
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -413,7 +413,7 @@ func TestWebhookHandlerWithPool_HandleJobStatus(t *testing.T) {
 			mockAction := &mockActionServicePool{}
 			mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 			mockPool := worker.NewPool(2, 10)
-			defer mockPool.Shutdown(time.Second)
+			defer func() { _ = mockPool.Shutdown(time.Second) }()
 			handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
 			var expectedJobID string
@@ -447,7 +447,7 @@ func TestWebhookHandlerWithPool_HandleJobStatus_FailedJob(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -484,7 +484,7 @@ func TestWebhookHandlerWithPool_Cleanup(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -518,7 +518,7 @@ func TestWebhookHandlerWithPool_Integration(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -557,7 +557,7 @@ func TestWebhookHandlerWithPool_CleanupMethod(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 
@@ -598,7 +598,7 @@ func TestWebhookHandlerWithPool_JSONEncodingErrors(t *testing.T) {
 	mockAction := &mockActionServicePool{}
 	mockAuth := &mockAuthenticatorPool{shouldValidate: true}
 	mockPool := worker.NewPool(2, 10)
-	defer mockPool.Shutdown(time.Second)
+	defer func() { _ = mockPool.Shutdown(time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(mockAction, mockAuth, mockPool)
 

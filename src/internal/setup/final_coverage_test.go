@@ -18,7 +18,7 @@ func TestServiceInstaller_Setup_FailurePaths(t *testing.T) {
 	}{
 		{
 			name: "installService fails",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetEuid(0)
 				osIface.SetExecutable("/test/cloud-update", nil)
 				fs.WriteFile("/test/cloud-update", []byte("binary content"), 0755)
@@ -31,7 +31,7 @@ func TestServiceInstaller_Setup_FailurePaths(t *testing.T) {
 		},
 		{
 			name: "createConfig fails",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetEuid(0)
 				osIface.SetExecutable("/test/cloud-update", nil)
 				fs.WriteFile("/test/cloud-update", []byte("binary content"), 0755)
