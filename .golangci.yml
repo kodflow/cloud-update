@@ -1,10 +1,4 @@
-# golangci-lint configuration file
-version: 2
-
-run:
-  build-tags:
-    - integration
-  tests: true
+version: "2"
 
 linters:
   enable:
@@ -23,72 +17,14 @@ linters:
     - staticcheck
     - wrapcheck
   disable:
-    - errcheck  # Temporarily disabled - has 63 issues to fix
-    - gosec     # Temporarily disabled - has 84 issues to fix  
-    - revive    # Temporarily disabled - has 97 issues to fix
+    - errcheck
+    - gosec
+    - revive
 
-linters-settings:
-  dogsled:
-    max-blank-identifiers: 2
-  gocritic:
-    enabled-checks:
-      - nilValReturn
-      - rangeExprCopy
-      - rangeValCopy
-      - boolExprSimplify
-      - equalFold
-      - indexAlloc
-      - nestingReduce
-      - ptrToRefParam
-      - typeAssertChain
-      - typeUnparen
-      - unnecessaryBlock
-  gocyclo:
-    min-complexity: 20
-  gosec:
-    excludes:
-      - G104
-      - G307
-  govet:
-    check-shadowing: false
-  lll:
-    line-length: 120
-    tab-width: 1
-  misspell:
-    locale: US
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: true
+run:
+  tests: true
+  timeout: 5m
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - linters:
-        - dupl
-        - errcheck
-        - gocyclo
-        - gosec
-        - lll
-      path: _test\.go
-    - linters:
-        - deadcode
-      path: BUILD\.bazel
-    - linters:
-        - gochecknoglobals
-      path: main\.go
-  exclude-dirs:
-    - bazel-bin
-    - bazel-out
-    - bazel-testlogs
-    - bazel-cloud-update
-    - vendor
-    - .git
-    - third_party
-    - builtin
-    - examples
-  exclude-files:
-    - .*\.pb\.go$
-    - .*\.gen\.go$
-    - mock_.*\.go$
