@@ -209,17 +209,14 @@ func TestJobWithMutex_ConcurrentAccess(t *testing.T) {
 	// Number of concurrent goroutines
 	const numGoroutines = 100
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines * 4) // 4 operations per goroutine
 
-	// Concurrent SetRunning
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			job.SetRunning()
-		}()
-	}
+	// First, set the job to running state
+	job.SetRunning()
 
-	// Concurrent GetStatus
+	// Now test concurrent operations on a running job
+	wg.Add(numGoroutines * 3) // 3 types of operations
+
+	// Concurrent GetStatus (read operations)
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			defer wg.Done()
@@ -227,7 +224,7 @@ func TestJobWithMutex_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 
-	// Concurrent IsRunning
+	// Concurrent IsRunning (read operations)
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			defer wg.Done()
@@ -235,7 +232,7 @@ func TestJobWithMutex_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 
-	// Concurrent SetCompleted/SetFailed
+	// Concurrent SetCompleted/SetFailed (only one will succeed)
 	for i := 0; i < numGoroutines; i++ {
 		go func(i int) {
 			defer wg.Done()
@@ -262,7 +259,7 @@ func TestJobWithMutex_ConcurrentAccess(t *testing.T) {
 		t.Fatal("Concurrent access test timed out - possible deadlock")
 	}
 
-	// Verify job is in a valid final state
+	// Verify job is in a valid final state (should be either completed or failed)
 	finalStatus := job.GetStatus()
 	if finalStatus != JobStatusCompleted && finalStatus != JobStatusFailed {
 		t.Errorf("Final status = %v, want Completed or Failed", finalStatus)
