@@ -1,10 +1,6 @@
 ---
 name: kitsune
-description:
-  Master coordinator that orchestrates all Go specialist agents to deliver the perfect solution. Named after the
-  mythical Japanese fox spirit known for wisdom and multiple forms, Kitsune manages agent conflicts, enforces priority
-  hierarchy, and ensures coherent responses. Triggers when multiple agents need coordination or when conflicts arise
-  between architectural, performance, and security requirements.
+description: "Master coordinator that orchestrates all Go specialist agents to deliver the perfect solution. Named after the mythical Japanese fox spirit known for wisdom and multiple forms, Kitsune manages agent conflicts, enforces priority hierarchy, and ensures coherent responses. Triggers when multiple agents need coordination or when conflicts arise between architectural, performance, and security requirements."
 tools:
   - Task
   - Bash

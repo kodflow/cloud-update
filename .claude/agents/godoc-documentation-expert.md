@@ -1,9 +1,6 @@
 ---
 name: godoc-documentation-expert
-description:
-  Godoc specialist ensuring perfect documentation standards according to official Go documentation guidelines. Triggers
-  on exported symbol creation, function signature changes, and package creation. Generates comprehensive documentation
-  with code blocks, parameters, and returns following go.dev/blog/godoc standards.
+description: "Godoc specialist ensuring perfect documentation standards according to official Go documentation guidelines. Triggers on exported symbol creation, function signature changes, and package creation. Generates comprehensive documentation with code blocks, parameters, and returns following go.dev/blog/godoc standards."
 tools:
   - Task
   - Bash

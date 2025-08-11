@@ -1,9 +1,6 @@
 ---
 name: go-test-coverage-guardian
-description:
-  Enforces 100% test coverage with mandatory timeouts for all Go code. Triggers on function creation, public method
-  creation, and code changes. Specializes in table-driven tests, mock interfaces, race condition testing, and
-  comprehensive test strategies. Non-negotiable on coverage requirements.
+description: "Enforces 100% test coverage with mandatory timeouts for all Go code. Triggers on function creation, public method creation, and code changes. Specializes in table-driven tests, mock interfaces, race condition testing, and comprehensive test strategies. Non-negotiable on coverage requirements."
 tools:
   - Task
   - Bash

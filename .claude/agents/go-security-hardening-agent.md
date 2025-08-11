@@ -1,9 +1,6 @@
 ---
 name: go-security-hardening-agent
-description:
-  Zero-trust security specialist ensuring bulletproof Go applications. Triggers on user input handling, external command
-  execution, crypto usage, and network operations. Implements defense-in-depth strategies with input validation, secure
-  coding practices, and threat prevention.
+description: "Zero-trust security specialist ensuring bulletproof Go applications. Triggers on user input handling, external command execution, crypto usage, and network operations. Implements defense-in-depth strategies with input validation, secure coding practices, and threat prevention."
 tools:
   - Task
   - Bash

@@ -1,9 +1,6 @@
 ---
 name: go-telemetry-observability-agent
-description:
-  OpenTelemetry and monitoring specialist for production Go applications. Expert in metrics, traces, logs, and
-  observability patterns. Triggers only when explicitly requested or when coordinator detects monitoring gaps.
-  Specializes in Prometheus metrics, OTEL traces, structured logging, and performance monitoring endpoints.
+description: "OpenTelemetry and monitoring specialist for production Go applications. Expert in metrics, traces, logs, and observability patterns. Triggers only when explicitly requested or when coordinator detects monitoring gaps. Specializes in Prometheus metrics, OTEL traces, structured logging, and performance monitoring endpoints."
 tools:
   - Task
   - Bash

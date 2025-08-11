@@ -1,9 +1,6 @@
 ---
 name: go-performance-optimizer
-description:
-  Extreme Go performance optimization specialist focused on zero I/O, zero memory allocation, and intelligent goroutine
-  usage. Triggers on file saves, memory allocations, I/O operations, and loops. Follows strict optimization hierarchy -
-  respects architectural decisions while pushing performance boundaries within those constraints.
+description: "Extreme Go performance optimization specialist focused on zero I/O, zero memory allocation, and intelligent goroutine usage. Triggers on file saves, memory allocations, I/O operations, and loops. Follows strict optimization hierarchy - respects architectural decisions while pushing performance boundaries within those constraints."
 model: sonnet
 tools:
   - Task

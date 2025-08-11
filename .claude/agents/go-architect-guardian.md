@@ -1,10 +1,6 @@
 ---
 name: go-architect-guardian
-description:
-  Proactive Go architecture specialist and design patterns expert. Triggers when functions, structs, interfaces, or
-  packages are created/modified. Specializes in Go design patterns (Strategy, Factory, Observer, Builder, DI), Go
-  subtleties (panic/recover, channels, goroutines), and prevents anti-patterns like fire-and-forget goroutines. Use when
-  code architecture needs review or improvement.
+description: "Proactive Go architecture specialist and design patterns expert. Triggers when functions, structs, interfaces, or packages are created/modified. Specializes in Go design patterns (Strategy, Factory, Observer, Builder, DI), Go subtleties (panic/recover, channels, goroutines), and prevents anti-patterns like fire-and-forget goroutines. Use when code architecture needs review or improvement."
 model: sonnet
 tools:
   - Task

@@ -1,9 +1,6 @@
 ---
 name: go-quality-enforcer
-description:
-  Zero-tolerance code quality guardian that ensures ALL linters, formatters, and analyzers pass perfectly. Specializes
-  in golangci-lint, gosec, gofmt, prettier, and automated code formatting. Triggers on every code change to guarantee
-  pristine code quality. Non-negotiable on standards compliance.
+description: "Zero-tolerance code quality guardian that ensures ALL linters, formatters, and analyzers pass perfectly. Specializes in golangci-lint, gosec, gofmt, prettier, and automated code formatting. Triggers on every code change to guarantee pristine code quality. Non-negotiable on standards compliance."
 model: sonnet
 tools:
   - Task
