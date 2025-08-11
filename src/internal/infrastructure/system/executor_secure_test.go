@@ -163,37 +163,55 @@ exec "$@"
 }
 
 func TestSecureExecutor_Reboot(t *testing.T) {
-	// This test requires mocked commands to prevent actual reboot attempts
+	// Test reboot functionality using mocks
+	mock := NewMockSecureExecutor()
 
 	tests := []struct {
 		name         string
 		privilegeCmd string
-		expectError  bool
+		shouldFail   bool
+		failMessage  string
 	}{
 		{
-			name:         "with sudo",
+			name:         "successful reboot with sudo",
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
-			name:         "without privilege escalation",
+			name:         "successful reboot without privilege",
 			privilegeCmd: "",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
+		},
+		{
+			name:         "failed reboot",
+			privilegeCmd: "sudo",
+			shouldFail:   true,
+			failMessage:  "reboot permission denied",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := &SecureExecutor{
-				privilegeCmd: tt.privilegeCmd,
-				timeout:      1 * time.Second,
+			mock.Reset()
+			mock.PrivilegeCommand = tt.privilegeCmd
+			mock.SetFailure(tt.shouldFail, tt.failMessage)
+
+			err := mock.Reboot()
+
+			if !mock.RebootCalled {
+				t.Error("Reboot() was not called")
 			}
 
-			// In test environment, we expect the command to fail
-			err := executor.Reboot()
-
-			if (err != nil) != tt.expectError {
-				t.Errorf("Reboot() error = %v, expectError %v", err, tt.expectError)
+			if tt.shouldFail {
+				if err == nil {
+					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), tt.failMessage) {
+					t.Errorf("Error message = %v, want containing %q", err, tt.failMessage)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
 			}
 		})
 	}
@@ -675,18 +693,29 @@ func TestSecureExecutor_LongRunningCommand(t *testing.T) {
 
 // Test interface compliance.
 func TestSecureExecutor_ImplementsExecutorInterface(t *testing.T) {
-	// This test verifies interface compliance
-
-	var executor Executor = &SecureExecutor{}
+	// This test verifies interface compliance using a mock
+	var executor Executor = NewMockSecureExecutor()
 
 	// Should be able to call all Executor interface methods
 	_ = executor.DetectDistribution()
-
-	// These will likely fail in test environment, but should be callable
-	// Note: These may attempt real system operations, so they're expected to fail
 	_ = executor.RunCloudInit()
 	_ = executor.Reboot()
 	_ = executor.UpdateSystem()
+
+	// Verify the mock was used properly
+	mock := executor.(*MockSecureExecutor)
+	if !mock.DetectDistCalled {
+		t.Error("DetectDistribution was not called")
+	}
+	if !mock.CloudInitCalled {
+		t.Error("RunCloudInit was not called")
+	}
+	if !mock.RebootCalled {
+		t.Error("Reboot was not called")
+	}
+	if !mock.UpdateCalled {
+		t.Error("UpdateSystem was not called")
+	}
 }
 
 // Test specific error paths in UpdateSystem that weren't covered.
