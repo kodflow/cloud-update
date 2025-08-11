@@ -32,10 +32,12 @@ func (m *mockRebootExecutor) Reboot() error {
 
 // TestExecuteReboot_ErrorPath tests the error path in executeReboot.
 func TestExecuteReboot_ErrorPath(t *testing.T) {
-	// Skip if we can't run this quickly
-	if testing.Short() {
-		t.Skip("Skipping in short mode")
-	}
+	// Save original delay and restore after test
+	originalDelay := rebootDelay
+	defer func() { rebootDelay = originalDelay }()
+
+	// Set a much shorter delay for testing (100ms instead of 10s)
+	rebootDelay = 100 * time.Millisecond
 
 	// Create a mock executor that will return an error
 	mockExec := newMockRebootExecutor(true)
@@ -48,7 +50,7 @@ func TestExecuteReboot_ErrorPath(t *testing.T) {
 	// Call executeReboot which starts a goroutine
 	service.executeReboot("test_job_reboot_error")
 
-	// Wait for reboot to be called or timeout
+	// Wait for reboot to be called or timeout (with shorter timeout)
 	select {
 	case <-mockExec.rebootDone:
 		// Reboot was called, check if it was marked as error
@@ -59,8 +61,8 @@ func TestExecuteReboot_ErrorPath(t *testing.T) {
 		if !called {
 			t.Error("Reboot should have been called")
 		}
-	case <-time.After(11 * time.Second):
-		// This is expected to complete in about 10 seconds
+	case <-time.After(500 * time.Millisecond):
+		// Should complete within 100ms, giving 500ms timeout for safety
 		mockExec.mu.Lock()
 		called := mockExec.rebootCalled
 		mockExec.mu.Unlock()
