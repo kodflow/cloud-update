@@ -4,6 +4,7 @@ package service
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/kodflow/cloud-update/src/internal/domain/entity"
@@ -12,7 +13,24 @@ import (
 
 // rebootDelay is the delay before executing a reboot.
 // This is a variable so it can be modified in tests.
-var rebootDelay = 10 * time.Second
+var (
+	rebootDelay   = 10 * time.Second
+	rebootDelayMu sync.RWMutex
+)
+
+// getRebootDelay returns the current reboot delay value safely.
+func getRebootDelay() time.Duration {
+	rebootDelayMu.RLock()
+	defer rebootDelayMu.RUnlock()
+	return rebootDelay
+}
+
+// setRebootDelay sets the reboot delay value safely.
+func setRebootDelay(d time.Duration) {
+	rebootDelayMu.Lock()
+	defer rebootDelayMu.Unlock()
+	rebootDelay = d
+}
 
 // ActionService defines the interface for action processing.
 type ActionService interface {
@@ -60,7 +78,7 @@ func (s *actionService) executeReboot(jobID string) {
 	log.Printf("Job %s: Scheduling system reboot in 10 seconds", jobID)
 
 	go func() {
-		time.Sleep(rebootDelay)
+		time.Sleep(getRebootDelay())
 		if err := s.systemExecutor.Reboot(); err != nil {
 			log.Printf("Job %s: reboot failed: %v", jobID, err)
 		}

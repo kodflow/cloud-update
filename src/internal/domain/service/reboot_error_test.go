@@ -33,11 +33,11 @@ func (m *mockRebootExecutor) Reboot() error {
 // TestExecuteReboot_ErrorPath tests the error path in executeReboot.
 func TestExecuteReboot_ErrorPath(t *testing.T) {
 	// Save original delay and restore after test
-	originalDelay := rebootDelay
-	defer func() { rebootDelay = originalDelay }()
+	originalDelay := getRebootDelay()
+	defer func() { setRebootDelay(originalDelay) }()
 
 	// Set a much shorter delay for testing (100ms instead of 10s)
-	rebootDelay = 100 * time.Millisecond
+	setRebootDelay(100 * time.Millisecond)
 
 	// Create a mock executor that will return an error
 	mockExec := newMockRebootExecutor(true)
