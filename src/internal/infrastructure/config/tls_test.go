@@ -735,7 +735,7 @@ func BenchmarkTLSConfig_Validate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		config.Validate()
+		_ = config.Validate()
 	}
 }
 
@@ -753,7 +753,7 @@ func BenchmarkTLSConfig_GetTLSConfig(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		config.GetTLSConfig()
+		_, _ = config.GetTLSConfig()
 	}
 }
 

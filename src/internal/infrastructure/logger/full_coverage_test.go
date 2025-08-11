@@ -86,7 +86,7 @@ func TestMonitorLogRotationWithTicker(t *testing.T) {
 	monitorWG.Wait()
 
 	if logFile != nil {
-		logFile.Close()
+		_ = logFile.Close()
 	}
 }
 

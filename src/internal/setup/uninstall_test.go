@@ -18,7 +18,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 	}{
 		{
 			name: "successful uninstall with config removal",
-			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(_ *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("y", nil)
 			},
 			userResponse: "y",
@@ -26,7 +26,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "successful uninstall without config removal",
-			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(_ *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("n", nil)
 			},
 			userResponse: "n",
@@ -52,7 +52,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "scan input fails",
-			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(_ *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("", errors.New("scan failed"))
 			},
 			userResponse: "",
@@ -105,7 +105,7 @@ func TestServiceInstaller_stopService_Comprehensive(t *testing.T) {
 		{
 			name:       "systemd success",
 			initSystem: InitSystemd,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 		{
 			name:       "systemd fails",
@@ -117,7 +117,7 @@ func TestServiceInstaller_stopService_Comprehensive(t *testing.T) {
 		{
 			name:       "openrc success",
 			initSystem: InitOpenRC,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 		{
 			name:       "openrc fails",
@@ -129,7 +129,7 @@ func TestServiceInstaller_stopService_Comprehensive(t *testing.T) {
 		{
 			name:       "sysvinit success",
 			initSystem: InitSysVInit,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 		{
 			name:       "sysvinit fails",
@@ -141,7 +141,7 @@ func TestServiceInstaller_stopService_Comprehensive(t *testing.T) {
 		{
 			name:       "unknown init system",
 			initSystem: InitUnknown,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestServiceInstaller_disableService_Comprehensive(t *testing.T) {
 		{
 			name:       "systemd success",
 			initSystem: InitSystemd,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 		{
 			name:       "systemd fails",
@@ -192,7 +192,7 @@ func TestServiceInstaller_disableService_Comprehensive(t *testing.T) {
 		{
 			name:       "openrc success",
 			initSystem: InitOpenRC,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 		{
 			name:       "openrc fails",
@@ -226,7 +226,7 @@ func TestServiceInstaller_disableService_Comprehensive(t *testing.T) {
 		{
 			name:       "unknown init system",
 			initSystem: InitUnknown,
-			setupMocks: func(cmd *MockCommandRunner) {},
+			setupMocks: func(_ *MockCommandRunner) {},
 		},
 	}
 

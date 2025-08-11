@@ -23,7 +23,7 @@ func TestDefaultExecutor_UpdateSystem_Coverage(t *testing.T) {
 			setupFiles: func(t *testing.T) {
 				// Create alpine-release file
 				f, _ := os.Create("/tmp/test-alpine-release")
-				f.Close()
+				_ = f.Close()
 			},
 			cleanupFiles: func() {
 				_ = os.Remove("/tmp/test-alpine-release")
@@ -167,7 +167,7 @@ func testAlpineDetection(t *testing.T) {
 	if err != nil {
 		return // Skip if can't create file
 	}
-	f.Close()
+	_ = f.Close()
 	defer os.Remove("/tmp/test-alpine-release")
 
 	e := &DefaultExecutor{}
@@ -293,7 +293,7 @@ func TestSecureExecutor_UpdateSystem_Coverage(t *testing.T) {
 	t.Run("Alpine path", func(t *testing.T) {
 		// Create temp alpine-release file
 		f, _ := os.Create("/tmp/test-alpine-secure")
-		f.Close()
+		_ = f.Close()
 		defer os.Remove("/tmp/test-alpine-secure")
 
 		e := &SecureExecutor{
@@ -421,7 +421,7 @@ func TestExecutor_SpecificPaths_Coverage(t *testing.T) {
 	t.Run("UpdateSystem Alpine first command error", func(t *testing.T) {
 		// Create temp alpine-release file
 		f, _ := os.Create("/tmp/test-alpine-release-specific")
-		f.Close()
+		_ = f.Close()
 		defer os.Remove("/tmp/test-alpine-release-specific")
 
 		e := &DefaultExecutor{}
