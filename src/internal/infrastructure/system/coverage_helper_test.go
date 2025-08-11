@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -350,13 +349,10 @@ func (t *timeoutExecutorForReboot) RebootWithDelay(delay time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	defer cancel()
 
-	// This will timeout
-	cmd := exec.CommandContext(ctx, "sleep", "1")
-	if _, err := cmd.CombinedOutput(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("reboot command timed out")
-		}
-		return fmt.Errorf("reboot scheduling failed: %w", err)
+	// Simulate timeout immediately
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("reboot command timed out")
 	}
-	return nil
+	return fmt.Errorf("reboot scheduling failed: %w", ctx.Err())
 }
