@@ -18,7 +18,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 	}{
 		{
 			name: "successful uninstall with config removal",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("y", nil)
 			},
 			userResponse: "y",
@@ -26,7 +26,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "successful uninstall without config removal",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("n", nil)
 			},
 			userResponse: "n",
@@ -34,7 +34,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "binary removal fails",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				fs.SetShouldFail("RemoveAll", InstallDir, errors.New("removal failed"))
 				osIface.SetScanInput("n", nil)
 			},
@@ -43,7 +43,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "config removal fails",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("y", nil)
 				fs.SetShouldFail("RemoveAll", ConfigDir, errors.New("removal failed"))
 			},
@@ -52,7 +52,7 @@ func TestServiceInstaller_Uninstall_Comprehensive(t *testing.T) {
 		},
 		{
 			name: "scan input fails",
-			setupMocks: func(fs *MockFileSystem, cmd *MockCommandRunner, osIface *MockOSInterface) {
+			setupMocks: func(fs *MockFileSystem, _ *MockCommandRunner, osIface *MockOSInterface) {
 				osIface.SetScanInput("", errors.New("scan failed"))
 			},
 			userResponse: "",

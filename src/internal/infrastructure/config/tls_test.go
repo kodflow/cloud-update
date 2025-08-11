@@ -191,7 +191,7 @@ func setupTestEnvironment() func() {
 	return func() {
 		for key, value := range originalVars {
 			if value == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
 				os.Setenv(key, value)
 			}
@@ -209,7 +209,7 @@ func clearTLSEnvironment() {
 		"CLOUD_UPDATE_DOMAIN",
 	}
 	for _, key := range envKeys {
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 }
 
@@ -217,7 +217,7 @@ func clearTLSEnvironment() {
 func setTestEnvironment(envVars map[string]string) {
 	for key, value := range envVars {
 		if value == "" {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		} else {
 			os.Setenv(key, value)
 		}

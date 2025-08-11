@@ -444,7 +444,7 @@ func TestRateLimiter_Middleware(t *testing.T) {
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	middleware := rl.Middleware(nextHandler)
@@ -500,7 +500,7 @@ func TestRateLimiter_MiddlewareFunc(t *testing.T) {
 
 	nextHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	}
 
 	middleware := rl.MiddlewareFunc(nextHandler)

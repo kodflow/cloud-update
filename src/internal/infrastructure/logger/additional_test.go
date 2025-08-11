@@ -96,7 +96,7 @@ func TestLogger_IsRunningInTest_Coverage(t *testing.T) {
 	// Test without test indicators
 	// Save and clear env var
 	origEnv := os.Getenv("GO_TEST_DISABLE_MONITORING")
-	os.Unsetenv("GO_TEST_DISABLE_MONITORING")
+	_ = os.Unsetenv("GO_TEST_DISABLE_MONITORING")
 	os.Args = []string{"myapp", "--flag"}
 	if isRunningInTest() {
 		t.Error("Should not detect test environment without indicators")
