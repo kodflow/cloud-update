@@ -1,9 +1,11 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "setup",
     srcs = [
         "embedded.go",
+        "helpers.go",
+        "interfaces.go",
         "setup.go",
     ],
     embedsrcs = [
@@ -16,5 +18,30 @@ go_library(
     deps = [
         "//src/internal/infrastructure/console",
         "//src/internal/infrastructure/system",
+    ],
+)
+
+go_test(
+    name = "setup_test",
+    srcs = [
+        "coverage_test.go",
+        "detection_test.go",
+        "embedded_test.go",
+        "enable_service_error_test.go",
+        "final_coverage_test.go",
+        "helpers_test.go",
+        "interfaces_test.go",
+        "mocks_test.go",
+        "setup_comprehensive_test.go",
+        "setup_test.go",
+        "uninstall_test.go",
+    ],
+    embed = [":setup"],
+    size = "small",
+    timeout = "short",
+    deps = [
+        "//src/internal/infrastructure/system",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
     ],
 )

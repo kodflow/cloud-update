@@ -4,29 +4,29 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestActionTypeConstants(t *testing.T) {
-	// Ensure action constants are properly defined
-	actions := []ActionType{
-		ActionReinit,
-		ActionReboot,
-		ActionUpdate,
+	// Test all action constants are properly defined
+	tests := []struct {
+		action   ActionType
+		expected string
+	}{
+		{ActionReinit, "reinit"},
+		{ActionReboot, "reboot"},
+		{ActionUpdate, "update"},
+		{ActionShutdown, "shutdown"},
+		{ActionExecuteScript, "execute_script"},
+		{ActionUpgrade, "upgrade"},
+		{ActionRestart, "restart"},
 	}
 
-	expectedValues := map[ActionType]string{
-		ActionReinit: "reinit",
-		ActionReboot: "reboot",
-		ActionUpdate: "update",
-	}
-
-	for _, action := range actions {
-		if expected, ok := expectedValues[action]; ok {
-			if string(action) != expected {
-				t.Errorf("Action %s has wrong value: got %s, want %s",
-					action, string(action), expected)
-			}
-		}
+	for _, tt := range tests {
+		t.Run(string(tt.action), func(t *testing.T) {
+			assert.Equal(t, tt.expected, string(tt.action))
+		})
 	}
 }
 

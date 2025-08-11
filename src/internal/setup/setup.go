@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -24,6 +23,9 @@ const (
 type ServiceInstaller struct {
 	distro     system.Distribution
 	initSystem InitSystem
+	fs         FileSystem
+	cmd        CommandRunner
+	os         OSInterface
 }
 
 // InitSystem represents the type of init system.
@@ -43,6 +45,20 @@ func NewServiceInstaller() *ServiceInstaller {
 	return &ServiceInstaller{
 		distro:     detectDistribution(),
 		initSystem: detectInitSystem(),
+		fs:         RealFileSystem{},
+		cmd:        RealCommandRunner{},
+		os:         RealOSInterface{},
+	}
+}
+
+// NewServiceInstallerWithDeps creates a new service installer with injected dependencies.
+func NewServiceInstallerWithDeps(fs FileSystem, cmd CommandRunner, osIface OSInterface) *ServiceInstaller {
+	return &ServiceInstaller{
+		distro:     detectDistribution(),
+		initSystem: detectInitSystem(),
+		fs:         fs,
+		cmd:        cmd,
+		os:         osIface,
 	}
 }
 
@@ -52,7 +68,7 @@ func (s *ServiceInstaller) Setup() error {
 	console.Println(fmt.Sprintf("📦 Detected: %s with %s", s.distro, s.initSystem))
 
 	// Check if running as root
-	if os.Geteuid() != 0 && runtime.GOOS != "windows" {
+	if s.os.Geteuid() != 0 && runtime.GOOS != "windows" {
 		return fmt.Errorf("setup must be run as root (use sudo)")
 	}
 
@@ -99,7 +115,7 @@ func (s *ServiceInstaller) createDirectories() error {
 	}
 
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
+		if err := s.fs.MkdirAll(dir.path, dir.mode); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir.path, err)
 		}
 		console.Println(fmt.Sprintf("  ✓ %s", dir.path))
@@ -112,7 +128,7 @@ func (s *ServiceInstaller) installBinary() error {
 	console.Println("📦 Installing binary...")
 
 	// Get current executable path
-	execPath, err := os.Executable()
+	execPath, err := s.os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %w", err)
 	}
@@ -120,13 +136,13 @@ func (s *ServiceInstaller) installBinary() error {
 	destPath := filepath.Join(InstallDir, BinaryName)
 
 	// Copy binary
-	input, err := os.ReadFile(execPath) //nolint:gosec // execPath comes from os.Executable()
+	input, err := s.fs.ReadFile(execPath) //nolint:gosec // execPath comes from os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to read executable: %w", err)
 	}
 
 	// Binary needs executable permissions
-	if err := os.WriteFile(destPath, input, 0o755); err != nil { //nolint:gosec // binary must be executable
+	if err := s.fs.WriteFile(destPath, input, 0o755); err != nil { //nolint:gosec // binary must be executable
 		return fmt.Errorf("failed to write binary: %w", err)
 	}
 
@@ -153,12 +169,12 @@ func (s *ServiceInstaller) installSystemdService() error {
 	servicePath := "/etc/systemd/system/cloud-update.service"
 
 	// Systemd service files need 0644 permissions
-	if err := os.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil { //nolint:gosec
+	if err := s.fs.WriteFile(servicePath, []byte(SystemdService), 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write systemd service: %w", err)
 	}
 
 	// Reload systemd
-	if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+	if err := s.cmd.Run("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("failed to reload systemd: %w", err)
 	}
 
@@ -170,7 +186,7 @@ func (s *ServiceInstaller) installOpenRCService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	if err := os.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil { //nolint:gosec
+	if err := s.fs.WriteFile(servicePath, []byte(OpenRCScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write OpenRC script: %w", err)
 	}
 
@@ -182,13 +198,13 @@ func (s *ServiceInstaller) installSysVInitService() error {
 	servicePath := "/etc/init.d/cloud-update"
 
 	// Init scripts need executable permissions
-	if err := os.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil { //nolint:gosec
+	if err := s.fs.WriteFile(servicePath, []byte(SysVInitScript), 0o755); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to write SysVInit script: %w", err)
 	}
 
 	// Update rc.d if available
-	if _, err := exec.LookPath("update-rc.d"); err == nil {
-		if err := exec.Command("update-rc.d", "cloud-update", "defaults").Run(); err != nil {
+	if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
+		if err := s.cmd.Run("update-rc.d", "cloud-update", "defaults"); err != nil {
 			fmt.Printf("  ⚠️  Failed to update rc.d: %v\n", err)
 		}
 	}
@@ -203,7 +219,7 @@ func (s *ServiceInstaller) createConfig() error {
 	configPath := filepath.Join(ConfigDir, "config.env")
 
 	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
+	if _, err := s.fs.Stat(configPath); err == nil {
 		fmt.Printf("  ⚠️  Config already exists at %s\n", configPath)
 		return nil
 	}
@@ -227,12 +243,12 @@ CLOUD_UPDATE_SECRET=%s
 CLOUD_UPDATE_LOG_LEVEL=info
 `, secret)
 
-	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+	if err := s.fs.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	// Set ownership to root
-	if err := os.Chown(configPath, 0, 0); err != nil {
+	if err := s.fs.Chown(configPath, 0, 0); err != nil {
 		return fmt.Errorf("failed to set config ownership: %w", err)
 	}
 
@@ -246,16 +262,20 @@ CLOUD_UPDATE_LOG_LEVEL=info
 func (s *ServiceInstaller) enableService() error {
 	console.Println("🔌 Enabling service...")
 
-	var cmd *exec.Cmd
-
 	switch s.initSystem {
 	case InitSystemd:
-		cmd = exec.Command("systemctl", "enable", "cloud-update")
+		if err := s.cmd.Run("systemctl", "enable", "cloud-update"); err != nil {
+			return fmt.Errorf("failed to enable service: %w", err)
+		}
 	case InitOpenRC:
-		cmd = exec.Command("rc-update", "add", "cloud-update", "default")
+		if err := s.cmd.Run("rc-update", "add", "cloud-update", "default"); err != nil {
+			return fmt.Errorf("failed to enable service: %w", err)
+		}
 	case InitSysVInit:
-		if _, err := exec.LookPath("update-rc.d"); err == nil {
-			cmd = exec.Command("update-rc.d", "cloud-update", "enable")
+		if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
+			if err := s.cmd.Run("update-rc.d", "cloud-update", "enable"); err != nil {
+				return fmt.Errorf("failed to enable service: %w", err)
+			}
 		} else {
 			fmt.Println("  ⚠️  Please manually enable the service")
 			return nil
@@ -263,10 +283,6 @@ func (s *ServiceInstaller) enableService() error {
 	default:
 		fmt.Printf("  ⚠️  Cannot auto-enable for %s\n", s.initSystem)
 		return nil
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to enable service: %w", err)
 	}
 
 	fmt.Println("  ✓ Service enabled")
@@ -307,7 +323,7 @@ func (s *ServiceInstaller) Uninstall() error {
 	s.removeServiceFiles()
 
 	// Remove binary
-	if err := os.RemoveAll(InstallDir); err != nil {
+	if err := s.fs.RemoveAll(InstallDir); err != nil {
 		fmt.Printf("  ⚠️  Failed to remove %s: %v\n", InstallDir, err)
 	} else {
 		fmt.Printf("  ✓ Removed %s\n", InstallDir)
@@ -316,12 +332,12 @@ func (s *ServiceInstaller) Uninstall() error {
 	// Ask about config
 	fmt.Printf("\n❓ Remove configuration directory %s? (y/N): ", ConfigDir)
 	var response string
-	if _, err := fmt.Scanln(&response); err != nil {
+	if _, err := s.os.Scanln(&response); err != nil {
 		// Default to "no" if scan fails
 		response = "n"
 	}
 	if strings.EqualFold(response, "y") {
-		if err := os.RemoveAll(ConfigDir); err != nil {
+		if err := s.fs.RemoveAll(ConfigDir); err != nil {
 			fmt.Printf("  ⚠️  Failed to remove %s: %v\n", ConfigDir, err)
 		} else {
 			fmt.Printf("  ✓ Removed %s\n", ConfigDir)
@@ -335,45 +351,53 @@ func (s *ServiceInstaller) Uninstall() error {
 func (s *ServiceInstaller) stopService() {
 	console.Println("⏹️  Stopping service...")
 
-	var cmd *exec.Cmd
 	switch s.initSystem {
 	case InitSystemd:
-		cmd = exec.Command("systemctl", "stop", "cloud-update")
+		if err := s.cmd.Run("systemctl", "stop", "cloud-update"); err != nil {
+			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+		} else {
+			fmt.Println("  ✓ Service stopped")
+		}
 	case InitOpenRC:
-		cmd = exec.Command("rc-service", "cloud-update", "stop")
+		if err := s.cmd.Run("rc-service", "cloud-update", "stop"); err != nil {
+			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+		} else {
+			fmt.Println("  ✓ Service stopped")
+		}
 	case InitSysVInit:
-		cmd = exec.Command("service", "cloud-update", "stop")
+		if err := s.cmd.Run("service", "cloud-update", "stop"); err != nil {
+			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+		} else {
+			fmt.Println("  ✓ Service stopped")
+		}
 	default:
 		return
-	}
-
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
-	} else {
-		fmt.Println("  ✓ Service stopped")
 	}
 }
 
 func (s *ServiceInstaller) disableService() {
 	console.Println("🔌 Disabling service...")
 
-	var cmd *exec.Cmd
 	switch s.initSystem {
 	case InitSystemd:
-		cmd = exec.Command("systemctl", "disable", "cloud-update")
-	case InitOpenRC:
-		cmd = exec.Command("rc-update", "del", "cloud-update")
-	case InitSysVInit:
-		if _, err := exec.LookPath("update-rc.d"); err == nil {
-			cmd = exec.Command("update-rc.d", "-f", "cloud-update", "remove")
-		}
-	}
-
-	if cmd != nil {
-		if err := cmd.Run(); err != nil {
+		if err := s.cmd.Run("systemctl", "disable", "cloud-update"); err != nil {
 			fmt.Printf("  ⚠️  Failed to disable service: %v\n", err)
 		} else {
 			fmt.Println("  ✓ Service disabled")
+		}
+	case InitOpenRC:
+		if err := s.cmd.Run("rc-update", "del", "cloud-update"); err != nil {
+			fmt.Printf("  ⚠️  Failed to disable service: %v\n", err)
+		} else {
+			fmt.Println("  ✓ Service disabled")
+		}
+	case InitSysVInit:
+		if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
+			if err := s.cmd.Run("update-rc.d", "-f", "cloud-update", "remove"); err != nil {
+				fmt.Printf("  ⚠️  Failed to disable service: %v\n", err)
+			} else {
+				fmt.Println("  ✓ Service disabled")
+			}
 		}
 	}
 }
@@ -386,7 +410,7 @@ func (s *ServiceInstaller) removeServiceFiles() {
 	case InitSystemd:
 		servicePath = "/etc/systemd/system/cloud-update.service"
 		defer func() {
-			if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+			if err := s.cmd.Run("systemctl", "daemon-reload"); err != nil {
 				fmt.Printf("  ⚠️  Warning: failed to reload systemd: %v\n", err)
 			}
 		}()
@@ -395,7 +419,7 @@ func (s *ServiceInstaller) removeServiceFiles() {
 	}
 
 	if servicePath != "" {
-		if err := os.Remove(servicePath); err != nil {
+		if err := s.fs.Remove(servicePath); err != nil {
 			fmt.Printf("  ⚠️  Failed to remove %s: %v\n", servicePath, err)
 		} else {
 			fmt.Printf("  ✓ Removed %s\n", servicePath)
@@ -409,25 +433,31 @@ func detectDistribution() system.Distribution {
 }
 
 func detectInitSystem() InitSystem {
+	fs := RealFileSystem{}
+	cmd := RealCommandRunner{}
+	return detectInitSystemWithDeps(fs, cmd)
+}
+
+func detectInitSystemWithDeps(fs FileSystem, cmd CommandRunner) InitSystem {
 	// Check for systemd
-	if _, err := os.Stat("/run/systemd/system"); err == nil {
+	if _, err := fs.Stat("/run/systemd/system"); err == nil {
 		return InitSystemd
 	}
 
 	// Check for OpenRC
-	if _, err := exec.LookPath("openrc"); err == nil {
+	if _, err := cmd.LookPath("openrc"); err == nil {
 		return InitOpenRC
 	}
 
 	// Check for Upstart
-	if _, err := os.Stat("/etc/init"); err == nil {
-		if _, err := exec.LookPath("initctl"); err == nil {
+	if _, err := fs.Stat("/etc/init"); err == nil {
+		if _, err := cmd.LookPath("initctl"); err == nil {
 			return InitUpstart
 		}
 	}
 
 	// Check for SysVInit
-	if _, err := os.Stat("/etc/init.d"); err == nil {
+	if _, err := fs.Stat("/etc/init.d"); err == nil {
 		return InitSysVInit
 	}
 
@@ -435,10 +465,18 @@ func detectInitSystem() InitSystem {
 }
 
 func generateSecret() (string, error) {
-	cmd := exec.Command("openssl", "rand", "-hex", "32")
-	output, err := cmd.Output()
+	cmd := RealCommandRunner{}
+	return generateSecretWithDeps(cmd)
+}
+
+func generateSecretWithDeps(cmd CommandRunner) (string, error) {
+	output, err := cmd.Output("openssl", "rand", "-hex", "32")
 	if err == nil && len(output) > 0 {
-		return strings.TrimSpace(string(output)), nil
+		trimmed := strings.TrimSpace(string(output))
+		// Check if the output is exactly 64 characters (32 bytes in hex)
+		if len(trimmed) == 64 {
+			return trimmed, nil
+		}
 	}
 
 	// Fallback to Go's crypto/rand

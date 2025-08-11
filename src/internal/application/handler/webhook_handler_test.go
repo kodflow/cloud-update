@@ -22,6 +22,7 @@ type mockActionService struct {
 	processActionCalled bool
 	lastRequest         entity.WebhookRequest
 	lastJobID           string
+	shouldPanic         bool
 }
 
 func (m *mockActionService) ProcessAction(req entity.WebhookRequest, jobID string) {
@@ -30,6 +31,9 @@ func (m *mockActionService) ProcessAction(req entity.WebhookRequest, jobID strin
 	m.processActionCalled = true
 	m.lastRequest = req
 	m.lastJobID = jobID
+	if m.shouldPanic {
+		panic("mock panic for testing")
+	}
 }
 
 func (m *mockActionService) wasProcessActionCalled() bool {

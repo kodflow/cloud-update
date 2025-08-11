@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "logger",
-    srcs = ["logger.go"],
+    srcs = [
+        "logger.go",
+        "slog_logger.go",
+    ],
     importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/logger",
     visibility = ["//visibility:public"],
     deps = [

@@ -1,8 +1,16 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "console",
     srcs = ["console.go"],
     importpath = "github.com/kodflow/cloud-update/src/internal/infrastructure/console",
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "console_test",
+    srcs = ["console_test.go"],
+    embed = [":console"],
+    size = "small",
+    timeout = "short",
 )

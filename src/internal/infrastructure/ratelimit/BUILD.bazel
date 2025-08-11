@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "ratelimit",
@@ -7,6 +7,17 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/internal/infrastructure/logger",
+        "@org_golang_x_time//rate:go_default_library",
+    ],
+)
+
+go_test(
+    name = "ratelimit_test",
+    srcs = ["limiter_test.go"],
+    embed = [":ratelimit"],
+    size = "small",
+    timeout = "short",
+    deps = [
         "@org_golang_x_time//rate:go_default_library",
     ],
 )

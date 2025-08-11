@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -151,5 +152,44 @@ func TestNewHealthHandler(t *testing.T) {
 	handler := NewHealthHandler()
 	if handler == nil {
 		t.Fatal("NewHealthHandler returned nil")
+	}
+}
+
+// brokenResponseWriter simulates a ResponseWriter that fails on Write.
+type brokenResponseWriter struct {
+	header http.Header
+	status int
+}
+
+func newBrokenResponseWriter() *brokenResponseWriter {
+	return &brokenResponseWriter{
+		header: make(http.Header),
+	}
+}
+
+func (b *brokenResponseWriter) Header() http.Header {
+	return b.header
+}
+
+func (b *brokenResponseWriter) Write([]byte) (int, error) {
+	return 0, fmt.Errorf("write failed")
+}
+
+func (b *brokenResponseWriter) WriteHeader(statusCode int) {
+	b.status = statusCode
+}
+
+func TestHealthHandler_JSONEncodingError(t *testing.T) {
+	handler := NewHealthHandler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
+	rr := newBrokenResponseWriter()
+
+	// This should trigger the JSON encoding error path
+	handler.HandleHealth(rr, req)
+
+	// The WriteHeader should have been called with 500 due to the error handling
+	if rr.status != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, rr.status)
 	}
 }
