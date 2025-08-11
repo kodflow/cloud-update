@@ -3,7 +3,6 @@ package logger
 import (
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 )
@@ -44,25 +43,9 @@ func TestLogger_MonitorLogRotation_Actual(t *testing.T) {
 	// Let the monitor run briefly
 	time.Sleep(50 * time.Millisecond)
 
-	// Trigger shutdown
-	mu.Lock()
-	if stopChan != nil {
-		close(stopChan)
-		stopChan = nil
-	}
-	mu.Unlock()
-
-	// Wait for goroutine to finish
-	monitorWG.Wait()
-
-	// Clean up
-	mu.Lock()
-	if logFile != nil {
-		_ = logFile.Close()
-		logFile = nil
-	}
-	mu.Unlock()
-	once = sync.Once{}
+	// Use the Close function to properly shut down
+	// This ensures proper synchronization and cleanup
+	Close()
 }
 
 // Test the tick case in monitorLogRotation.
