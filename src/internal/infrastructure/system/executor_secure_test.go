@@ -185,6 +185,11 @@ func TestSecureExecutor_RunCloudInit(t *testing.T) {
 }
 
 func TestSecureExecutor_Reboot(t *testing.T) {
+	// Skip this test in CI to prevent attempting actual reboot
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping reboot test in CI environment")
+	}
+
 	tests := []struct {
 		name         string
 		privilegeCmd string
@@ -209,6 +214,7 @@ func TestSecureExecutor_Reboot(t *testing.T) {
 				timeout:      1 * time.Second,
 			}
 
+			// In test environment, we expect the command to fail
 			err := executor.Reboot()
 
 			if (err != nil) != tt.expectError {
@@ -688,15 +694,21 @@ func TestSecureExecutor_LongRunningCommand(t *testing.T) {
 
 // Test interface compliance.
 func TestSecureExecutor_ImplementsExecutorInterface(t *testing.T) {
+	// Skip reboot-related calls in CI to prevent attempting actual reboot
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping interface test with reboot in CI environment")
+	}
+
 	var executor Executor = &SecureExecutor{}
 
 	// Should be able to call all Executor interface methods
 	_ = executor.DetectDistribution()
 
 	// These will likely fail in test environment, but should be callable
-	executor.RunCloudInit()
-	executor.Reboot()
-	executor.UpdateSystem()
+	// Note: These may attempt real system operations, so they're expected to fail
+	_ = executor.RunCloudInit()
+	_ = executor.Reboot()
+	_ = executor.UpdateSystem()
 }
 
 // Test specific error paths in UpdateSystem that weren't covered.

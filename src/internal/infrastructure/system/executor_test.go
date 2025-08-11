@@ -180,6 +180,11 @@ func TestDefaultExecutor_RunCloudInit(t *testing.T) {
 }
 
 func TestDefaultExecutor_Reboot(t *testing.T) {
+	// Skip this test in CI to prevent attempting actual reboot
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping reboot test in CI environment")
+	}
+
 	tests := []struct {
 		name         string
 		privilegeCmd string
@@ -203,8 +208,9 @@ func TestDefaultExecutor_Reboot(t *testing.T) {
 				privilegeCmd: tt.privilegeCmd,
 			}
 
+			// We expect Reboot() to return an error in test environment
+			// as it will try to execute reboot command without privileges
 			err := executor.Reboot()
-
 			if (err != nil) != tt.expectError {
 				t.Errorf("Reboot() error = %v, expectError %v", err, tt.expectError)
 			}
