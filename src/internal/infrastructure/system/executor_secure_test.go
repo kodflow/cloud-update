@@ -16,7 +16,7 @@ import (
 func setupFakeCommands(t *testing.T) {
 	tmpDir := t.TempDir()
 	fakeSudo := filepath.Join(tmpDir, "sudo")
-	
+
 	// Create a fake sudo script that just passes through commands
 	sudoScript := `#!/bin/bash
 exec "$@"
@@ -25,11 +25,11 @@ exec "$@"
 	if err != nil {
 		t.Fatalf("Failed to create fake sudo: %v", err)
 	}
-	
+
 	// Save original PATH and restore after test
 	originalPath := os.Getenv("PATH")
 	t.Cleanup(func() { os.Setenv("PATH", originalPath) })
-	
+
 	// Prepend tmpDir to PATH so our fake sudo is found first
 	os.Setenv("PATH", tmpDir+":"+originalPath)
 }
@@ -151,7 +151,7 @@ func TestSecureExecutor_RunCloudInit(t *testing.T) {
 	tmpDir := t.TempDir()
 	fakeCloudInit := filepath.Join(tmpDir, "cloud-init")
 	fakeSudo := filepath.Join(tmpDir, "sudo")
-	
+
 	// Create a fake cloud-init script that succeeds
 	cloudInitScript := `#!/bin/bash
 echo "fake cloud-init clean"
@@ -162,7 +162,7 @@ exit 0
 	if err != nil {
 		t.Fatalf("Failed to create fake cloud-init: %v", err)
 	}
-	
+
 	// Create a fake sudo script that just passes through commands
 	sudoScript := `#!/bin/bash
 exec "$@"
@@ -171,11 +171,11 @@ exec "$@"
 	if err != nil {
 		t.Fatalf("Failed to create fake sudo: %v", err)
 	}
-	
+
 	// Save original PATH and restore after test
 	originalPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", originalPath)
-	
+
 	// Prepend tmpDir to PATH so our fake scripts are found first
 	os.Setenv("PATH", tmpDir+":"+originalPath)
 
