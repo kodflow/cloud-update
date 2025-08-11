@@ -227,7 +227,7 @@ func Close() {
 	// Stop the monitoring goroutine if it's running
 	if stopChan != nil {
 		close(stopChan)
-		stopChan = nil
+		// Don't set to nil here to avoid race - will be reset with once
 	}
 
 	mu.Unlock()
@@ -244,6 +244,8 @@ func Close() {
 		_ = logFile.Close() //nolint:errcheck // Switch to stdout, ignore close errors
 		logFile = nil
 	}
+	// Reset stopChan here after goroutine has exited
+	stopChan = nil
 	// Reset the once to allow re-initialization in tests
 	once = sync.Once{}
 }
