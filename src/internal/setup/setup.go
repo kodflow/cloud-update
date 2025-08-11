@@ -17,6 +17,13 @@ const (
 	InstallDir = "/opt/cloud-update"
 	ConfigDir  = "/etc/cloud-update"
 	BinaryName = "cloud-update"
+
+	// Error messages.
+	errMsgFailedToEnableService = "failed to enable service: %w"
+	errMsgFailedToStopService   = "  ⚠️  Failed to stop service: %v\n"
+
+	// Command names.
+	cmdUpdateRCD = "update-rc.d"
 )
 
 // ServiceInstaller handles the installation of cloud-update as a system service.
@@ -94,7 +101,7 @@ func (s *ServiceInstaller) Setup() error {
 
 	// Enable service
 	if err := s.enableService(); err != nil {
-		return fmt.Errorf("failed to enable service: %w", err)
+		return fmt.Errorf(errMsgFailedToEnableService, err)
 	}
 
 	console.Println("✅ Setup completed successfully!")
@@ -203,8 +210,8 @@ func (s *ServiceInstaller) installSysVInitService() error {
 	}
 
 	// Update rc.d if available
-	if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
-		if err := s.cmd.Run("update-rc.d", "cloud-update", "defaults"); err != nil {
+	if _, err := s.cmd.LookPath(cmdUpdateRCD); err == nil {
+		if err := s.cmd.Run(cmdUpdateRCD, ServiceName, "defaults"); err != nil {
 			fmt.Printf("  ⚠️  Failed to update rc.d: %v\n", err)
 		}
 	}
@@ -265,16 +272,16 @@ func (s *ServiceInstaller) enableService() error {
 	switch s.initSystem {
 	case InitSystemd:
 		if err := s.cmd.Run("systemctl", "enable", "cloud-update"); err != nil {
-			return fmt.Errorf("failed to enable service: %w", err)
+			return fmt.Errorf(errMsgFailedToEnableService, err)
 		}
 	case InitOpenRC:
 		if err := s.cmd.Run("rc-update", "add", "cloud-update", "default"); err != nil {
-			return fmt.Errorf("failed to enable service: %w", err)
+			return fmt.Errorf(errMsgFailedToEnableService, err)
 		}
 	case InitSysVInit:
-		if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
-			if err := s.cmd.Run("update-rc.d", "cloud-update", "enable"); err != nil {
-				return fmt.Errorf("failed to enable service: %w", err)
+		if _, err := s.cmd.LookPath(cmdUpdateRCD); err == nil {
+			if err := s.cmd.Run(cmdUpdateRCD, ServiceName, "enable"); err != nil {
+				return fmt.Errorf(errMsgFailedToEnableService, err)
 			}
 		} else {
 			fmt.Println("  ⚠️  Please manually enable the service")
@@ -354,19 +361,19 @@ func (s *ServiceInstaller) stopService() {
 	switch s.initSystem {
 	case InitSystemd:
 		if err := s.cmd.Run("systemctl", "stop", "cloud-update"); err != nil {
-			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+			fmt.Printf(errMsgFailedToStopService, err)
 		} else {
 			fmt.Println("  ✓ Service stopped")
 		}
 	case InitOpenRC:
 		if err := s.cmd.Run("rc-service", "cloud-update", "stop"); err != nil {
-			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+			fmt.Printf(errMsgFailedToStopService, err)
 		} else {
 			fmt.Println("  ✓ Service stopped")
 		}
 	case InitSysVInit:
 		if err := s.cmd.Run("service", "cloud-update", "stop"); err != nil {
-			fmt.Printf("  ⚠️  Failed to stop service: %v\n", err)
+			fmt.Printf(errMsgFailedToStopService, err)
 		} else {
 			fmt.Println("  ✓ Service stopped")
 		}
@@ -392,8 +399,8 @@ func (s *ServiceInstaller) disableService() {
 			fmt.Println("  ✓ Service disabled")
 		}
 	case InitSysVInit:
-		if _, err := s.cmd.LookPath("update-rc.d"); err == nil {
-			if err := s.cmd.Run("update-rc.d", "-f", "cloud-update", "remove"); err != nil {
+		if _, err := s.cmd.LookPath(cmdUpdateRCD); err == nil {
+			if err := s.cmd.Run(cmdUpdateRCD, "-f", ServiceName, "remove"); err != nil {
 				fmt.Printf("  ⚠️  Failed to disable service: %v\n", err)
 			} else {
 				fmt.Println("  ✓ Service disabled")

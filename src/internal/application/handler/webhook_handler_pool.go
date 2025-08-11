@@ -41,11 +41,37 @@ func NewWebhookHandlerWithPool(
 
 // HandleWebhook processes incoming webhook requests using worker pool.
 func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	// Validate and parse request
+	req, err := h.validateAndParseRequest(w, r)
+	if err != nil {
+		return // Error already written to response
+	}
+
+	// Check for existing job
+	if h.handleExistingJob(w) {
+		return // Conflict response already sent
+	}
+
+	// Create and submit new job
+	job, err := h.createAndSubmitJob(req)
+	if err != nil {
+		h.handleJobCreationError(w, err)
+		return
+	}
+
+	// Send success response
+	h.sendAcceptedResponse(w, job)
+}
+
+// validateAndParseRequest validates the HTTP request and parses the webhook payload.
+func (h *WebhookHandlerWithPool) validateAndParseRequest(
+	w http.ResponseWriter, r *http.Request,
+) (*entity.WebhookRequest, error) {
 	// Only accept POST requests
 	if r.Method != http.MethodPost {
 		logger.WithField("method", r.Method).Warn("Invalid HTTP method")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+		return nil, fmt.Errorf("invalid method")
 	}
 
 	// Read request body
@@ -53,7 +79,7 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		logger.WithField("error", err).Error("Failed to read request body")
 		http.Error(w, "Failed to read request", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 
 	// Parse webhook request
@@ -61,7 +87,7 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 	if err := json.Unmarshal(body, &req); err != nil {
 		logger.WithField("error", err).Error("Failed to parse request")
 		http.Error(w, "Invalid request format", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 
 	// Validate request timestamp (prevent replay attacks)
@@ -69,14 +95,14 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 	if time.Since(requestTime) > 5*time.Minute {
 		logger.Warn("Request timestamp too old")
 		http.Error(w, "Request expired", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("request expired")
 	}
 
 	// Authenticate request
 	if !h.authenticator.ValidateSignature(r, body) {
 		logger.Warn("Invalid webhook signature")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, fmt.Errorf("unauthorized")
 	}
 
 	// Validate action type
@@ -86,13 +112,16 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 	if !validActions[req.Action] {
 		logger.WithField("action", req.Action).Warn("Invalid action type")
 		http.Error(w, "Invalid action", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("invalid action")
 	}
 
-	// Check if there's already a job running
+	return &req, nil
+}
+
+// handleExistingJob checks for an existing running job and sends conflict response if found.
+func (h *WebhookHandlerWithPool) handleExistingJob(w http.ResponseWriter) bool {
 	currentJob := h.jobStore.GetCurrentJob()
 	if currentJob != nil && currentJob.IsRunning() {
-		// Return 409 Conflict with job info
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Job-ID", currentJob.ID)
 		w.WriteHeader(http.StatusConflict)
@@ -107,15 +136,18 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logger.WithField("error", err).Error("Failed to encode response")
 		}
-		return
+		return true
 	}
+	return false
+}
 
+// createAndSubmitJob creates a new job and submits it to the worker pool.
+func (h *WebhookHandlerWithPool) createAndSubmitJob(req *entity.WebhookRequest) (*entity.JobWithMutex, error) {
 	// Generate secure job ID
 	jobID, err := security.GenerateJobID()
 	if err != nil {
 		logger.WithField("error", err).Error("Failed to generate job ID")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to generate job ID: %w", err)
 	}
 
 	// Create new job
@@ -123,14 +155,7 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 
 	// Try to start the job
 	if !h.jobStore.TryStartJob(job) {
-		w.WriteHeader(http.StatusConflict)
-		if err := json.NewEncoder(w).Encode(map[string]string{
-			"status":  "job_already_running",
-			"message": "Failed to start job, another job is running",
-		}); err != nil {
-			logger.WithField("error", err).Error("Failed to encode response")
-		}
-		return
+		return nil, fmt.Errorf("job already running")
 	}
 
 	// Log the request
@@ -138,27 +163,45 @@ func (h *WebhookHandlerWithPool) HandleWebhook(w http.ResponseWriter, r *http.Re
 		WithField("action", req.Action).
 		Info("Starting webhook action with worker pool")
 
-	// Submit job to worker pool instead of using goroutine
+	// Submit job to worker pool
 	err = h.workerPool.Submit(func(ctx context.Context) {
-		h.processActionWithContext(ctx, req, job)
+		h.processActionWithContext(ctx, *req, job)
 	})
 
 	if err != nil {
 		logger.WithField("error", err).Error("Failed to submit job to worker pool")
 		h.jobStore.FailCurrentJob(err)
-		http.Error(w, "Server at capacity", http.StatusServiceUnavailable)
-		return
+		return nil, fmt.Errorf("failed to submit job: %w", err)
 	}
 
-	// Return 202 Accepted to indicate the job has been accepted for processing
+	return job, nil
+}
+
+// handleJobCreationError handles errors during job creation.
+func (h *WebhookHandlerWithPool) handleJobCreationError(w http.ResponseWriter, err error) {
+	if err.Error() == "job already running" {
+		w.WriteHeader(http.StatusConflict)
+		if encErr := json.NewEncoder(w).Encode(map[string]string{
+			"status":  "job_already_running",
+			"message": "Failed to start job, another job is running",
+		}); encErr != nil {
+			logger.WithField("error", encErr).Error("Failed to encode response")
+		}
+	} else {
+		http.Error(w, "Server at capacity", http.StatusServiceUnavailable)
+	}
+}
+
+// sendAcceptedResponse sends the 202 Accepted response.
+func (h *WebhookHandlerWithPool) sendAcceptedResponse(w http.ResponseWriter, job *entity.JobWithMutex) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Job-ID", jobID)
+	w.Header().Set("X-Job-ID", job.ID)
 	w.WriteHeader(http.StatusAccepted)
 
 	response := map[string]interface{}{
 		"status":  "accepted",
-		"job_id":  jobID,
-		"action":  req.Action,
+		"job_id":  job.ID,
+		"action":  job.Action,
 		"message": "Job accepted and processing started in worker pool",
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {

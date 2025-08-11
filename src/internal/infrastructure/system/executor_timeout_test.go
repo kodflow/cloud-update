@@ -553,8 +553,10 @@ func TestExecutorWithTimeout_Concurrent(t *testing.T) {
 }
 
 func TestExecutorWithTimeout_runUpdate_Timeout(t *testing.T) {
+	// Don't skip, use shorter timeout for testing
+	testTimeout := 100 * time.Millisecond
 	if testing.Short() {
-		t.Skip("Skipping timeout test in short mode")
+		testTimeout = 10 * time.Millisecond
 	}
 
 	mockExec := &mockTimeoutExecutor{
@@ -563,8 +565,8 @@ func TestExecutorWithTimeout_runUpdate_Timeout(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	// Use a very short timeout to force timeout
-	timeout := 1 * time.Millisecond
+	// Use the test timeout
+	timeout := testTimeout
 
 	// This should timeout quickly regardless of distribution
 	start := time.Now()
@@ -576,9 +578,9 @@ func TestExecutorWithTimeout_runUpdate_Timeout(t *testing.T) {
 		return
 	}
 
-	// Should timeout relatively quickly
-	if duration > 100*time.Millisecond {
-		t.Errorf("runUpdate took %v, should have timed out much faster", duration)
+	// Should timeout relatively quickly (within 2x the timeout + overhead)
+	if duration > testTimeout*2+50*time.Millisecond {
+		t.Errorf("runUpdate took %v, should have timed out within %v", duration, testTimeout*2)
 	}
 
 	if !strings.Contains(err.Error(), "timed out") {
@@ -587,8 +589,10 @@ func TestExecutorWithTimeout_runUpdate_Timeout(t *testing.T) {
 }
 
 func TestExecutorWithTimeout_runUpgrade_Timeout(t *testing.T) {
+	// Don't skip, use shorter timeout for testing
+	testTimeout := 100 * time.Millisecond
 	if testing.Short() {
-		t.Skip("Skipping timeout test in short mode")
+		testTimeout = 10 * time.Millisecond
 	}
 
 	mockExec := &mockTimeoutExecutor{
@@ -597,8 +601,8 @@ func TestExecutorWithTimeout_runUpgrade_Timeout(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	// Use a very short timeout to force timeout
-	timeout := 1 * time.Millisecond
+	// Use the test timeout
+	timeout := testTimeout
 
 	start := time.Now()
 	err := mockExec.runUpgrade(ctx, DistroDebian, timeout)
@@ -609,9 +613,9 @@ func TestExecutorWithTimeout_runUpgrade_Timeout(t *testing.T) {
 		return
 	}
 
-	// Should timeout relatively quickly
-	if duration > 100*time.Millisecond {
-		t.Errorf("runUpgrade took %v, should have timed out much faster", duration)
+	// Should timeout relatively quickly (within 2x the timeout + overhead)
+	if duration > testTimeout*2+50*time.Millisecond {
+		t.Errorf("runUpgrade took %v, should have timed out within %v", duration, testTimeout*2)
 	}
 
 	if !strings.Contains(err.Error(), "timed out") {

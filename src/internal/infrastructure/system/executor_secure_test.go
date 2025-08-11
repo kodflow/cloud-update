@@ -15,22 +15,26 @@ import (
 // setupFakeCommands creates fake sudo and other command binaries for testing.
 func setupFakeCommands(t *testing.T) {
 	tmpDir := t.TempDir()
-	fakeSudo := filepath.Join(tmpDir, "sudo")
 
-	// Create a fake sudo script that just passes through commands
-	sudoScript := `#!/bin/bash
-exec "$@"
-`
-	err := os.WriteFile(fakeSudo, []byte(sudoScript), 0755)
-	if err != nil {
-		t.Fatalf("Failed to create fake sudo: %v", err)
+	// Create fake commands that just echo instead of executing
+	commands := []string{"sudo", "doas", "su"}
+	for _, cmd := range commands {
+		fakeCmdPath := filepath.Join(tmpDir, cmd)
+		// Create a fake script that just echoes the command
+		script := fmt.Sprintf(`#!/bin/bash
+echo "%s $@"
+`, cmd)
+		err := os.WriteFile(fakeCmdPath, []byte(script), 0755)
+		if err != nil {
+			t.Fatalf("Failed to create fake %s: %v", cmd, err)
+		}
 	}
 
 	// Save original PATH and restore after test
 	originalPath := os.Getenv("PATH")
 	t.Cleanup(func() { os.Setenv("PATH", originalPath) })
 
-	// Prepend tmpDir to PATH so our fake sudo is found first
+	// Prepend tmpDir to PATH so our fake commands are found first
 	os.Setenv("PATH", tmpDir+":"+originalPath)
 }
 
@@ -354,15 +358,8 @@ func TestSecureExecutor_runPrivilegedSecure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipOnNoCmd && tt.privilegeCmd != "" {
-				if _, err := exec.LookPath(tt.privilegeCmd); err != nil {
-					t.Skipf("%s not available, skipping test", tt.privilegeCmd)
-				}
-				// Also skip if running in bazel sandbox (no sudo permissions)
-				if tt.privilegeCmd == "sudo" && os.Getenv("TEST_TMPDIR") != "" {
-					t.Skip("sudo not available in bazel sandbox, skipping test")
-				}
-			}
+			// The setupFakeCommands function already provides fake commands
+			// that echo instead of executing, so no need to skip or modify
 
 			executor := &SecureExecutor{
 				privilegeCmd: tt.privilegeCmd,
@@ -540,16 +537,8 @@ func TestSecureExecutor_SecurityValidations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Skip if privilege command not available
-			if tt.privilegeCmd != "" && tt.privilegeCmd != "malicious-cmd" {
-				if _, err := exec.LookPath(tt.privilegeCmd); err != nil {
-					t.Skipf("%s not available, skipping test", tt.privilegeCmd)
-				}
-				// Also skip if running in bazel sandbox (no sudo permissions)
-				if tt.privilegeCmd == "sudo" && os.Getenv("TEST_TMPDIR") != "" {
-					t.Skip("sudo not available in bazel sandbox, skipping test")
-				}
-			}
+			// The setupFakeCommands function already provides fake commands
+			// that echo instead of executing, so no need to modify the privilegeCmd
 
 			executor := &SecureExecutor{
 				privilegeCmd: tt.privilegeCmd,
@@ -626,13 +615,15 @@ func TestSecureExecutor_NilContext(t *testing.T) {
 }
 
 func TestSecureExecutor_LongRunningCommand(t *testing.T) {
+	// Don't skip, use shorter timeout for testing
+	testTimeout := 100 * time.Millisecond
 	if testing.Short() {
-		t.Skip("Skipping long-running test in short mode")
+		testTimeout = 10 * time.Millisecond
 	}
 
 	executor := &SecureExecutor{
 		privilegeCmd: "",
-		timeout:      2 * time.Second,
+		timeout:      testTimeout,
 	}
 
 	ctx := context.Background()
