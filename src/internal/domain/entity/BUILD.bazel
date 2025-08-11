@@ -13,6 +13,10 @@ go_library(
 go_test(
     size = "small",
     name = "entity_test",
-    srcs = ["action_test.go"],
+    srcs = [
+        "action_test.go",
+        "job_test.go",
+    ],
+    deps = ["@com_github_stretchr_testify//assert"],
     embed = [":entity"],
 )

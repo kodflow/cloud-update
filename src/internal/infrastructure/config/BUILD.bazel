@@ -13,6 +13,9 @@ go_library(
 go_test(
     size = "small",
     name = "config_test",
-    srcs = ["config_test.go"],
+    srcs = [
+        "config_test.go",
+        "tls_test.go",
+    ],
     embed = [":config"],
 )

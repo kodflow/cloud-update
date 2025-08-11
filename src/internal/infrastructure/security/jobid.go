@@ -23,6 +23,13 @@ func GenerateJobID() (string, error) {
 
 // GenerateSecureToken generates a secure random token of specified length.
 func GenerateSecureToken(length int) (string, error) {
+	if length < 0 {
+		return "", fmt.Errorf("failed to generate secure token: length must be non-negative")
+	}
+	if length == 0 {
+		return "", nil
+	}
+
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("failed to generate secure token: %w", err)

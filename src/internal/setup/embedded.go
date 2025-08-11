@@ -1,4 +1,4 @@
-// Package setup provides service installation and management
+// Package setup provides service installation and management.
 package setup
 
 import _ "embed"

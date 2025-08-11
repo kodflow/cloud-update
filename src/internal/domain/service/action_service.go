@@ -10,6 +10,10 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/infrastructure/system"
 )
 
+// rebootDelay is the delay before executing a reboot.
+// This is a variable so it can be modified in tests.
+var rebootDelay = 10 * time.Second
+
 // ActionService defines the interface for action processing.
 type ActionService interface {
 	ProcessAction(req entity.WebhookRequest, jobID string)
@@ -56,7 +60,7 @@ func (s *actionService) executeReboot(jobID string) {
 	log.Printf("Job %s: Scheduling system reboot in 10 seconds", jobID)
 
 	go func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(rebootDelay)
 		if err := s.systemExecutor.Reboot(); err != nil {
 			log.Printf("Job %s: reboot failed: %v", jobID, err)
 		}

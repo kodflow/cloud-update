@@ -90,12 +90,19 @@ func InitializeSlog(cfg Config) error {
 // GetSlog returns the slog instance with lazy initialization.
 func GetSlog() *slog.Logger {
 	if slogInstance == nil {
+		// Ensure we have a working instance even if initialization fails
 		_ = InitializeSlog(Config{
 			Level:      "info",
-			FilePath:   "/var/log/cloud-update/cloud-update.log",
+			FilePath:   "", // Use stdout only for fallback
 			MaxSize:    10 * 1024 * 1024,
 			MaxBackups: 5,
 		})
+		// If still nil, create a basic instance
+		if slogInstance == nil {
+			slogInstance = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			}))
+		}
 	}
 	return slogInstance
 }
@@ -119,11 +126,20 @@ func checkRotation() {
 	}
 }
 
-// rotateSlogFile performs log rotation.
+// rotateSlogFile performs log rotation with lock.
 func rotateSlogFile() {
 	slogMu.Lock()
 	defer slogMu.Unlock()
 
+	if slogFile == nil {
+		return
+	}
+
+	doRotateSlogFile()
+}
+
+// doRotateSlogFile performs log rotation without lock (internal use only).
+func doRotateSlogFile() {
 	if slogFile == nil {
 		return
 	}
@@ -148,6 +164,21 @@ func rotateSlogFile() {
 		slogInstance = slog.New(handler)
 		slog.SetDefault(slogInstance)
 	}
+}
+
+// Rotate manually triggers log rotation for testing.
+func Rotate() error {
+	slogMu.Lock()
+	defer slogMu.Unlock()
+
+	if slogFile == nil {
+		return fmt.Errorf("no log file to rotate")
+	}
+
+	// Force rotation regardless of size
+	// Call internal rotation function that doesn't take lock
+	doRotateSlogFile()
+	return nil
 }
 
 // Performance-optimized logging functions with caller info
@@ -202,4 +233,7 @@ func CloseSlog() {
 		_ = slogFile.Close()
 		slogFile = nil
 	}
+	// Reset the once to allow re-initialization in tests
+	slogOnce = sync.Once{}
+	slogInstance = nil
 }

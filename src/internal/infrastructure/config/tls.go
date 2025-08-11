@@ -37,6 +37,12 @@ func LoadTLSConfig() *TLSConfig {
 		}
 	}
 
+	// Clear cert/key paths when auto mode is enabled AND TLS is enabled
+	if cfg.Enabled && cfg.Auto {
+		cfg.CertFile = ""
+		cfg.KeyFile = ""
+	}
+
 	return cfg
 }
 

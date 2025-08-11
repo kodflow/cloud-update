@@ -130,6 +130,10 @@ deps:
 # TESTING
 # ==================================================================================== #
 
+# Load test environment variables
+include .env.test
+export
+
 ## test: run all tests with quality checks
 .PHONY: test
 test: quality/analyze test/unit test/e2e

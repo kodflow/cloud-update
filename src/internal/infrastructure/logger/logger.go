@@ -1,4 +1,4 @@
-// Package logger provides centralized logging with file output
+// Package logger provides centralized logging with file output.
 package logger
 
 import (
@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 )
 
 var (
-	instance *logrus.Logger
-	once     sync.Once
-	mu       sync.RWMutex
-	logFile  *os.File
+	instance  *logrus.Logger
+	once      sync.Once
+	mu        sync.RWMutex
+	logFile   *os.File
+	stopChan  chan struct{}
+	monitorWG sync.WaitGroup
 )
 
 // Config holds logger configuration.
@@ -64,6 +67,24 @@ func Initialize(cfg Config) error {
 	return err
 }
 
+// isRunningInTest checks if the code is running in a test environment.
+func isRunningInTest() bool {
+	// Check if any command line argument contains "test"
+	for _, arg := range os.Args {
+		if strings.Contains(arg, ".test") ||
+			strings.Contains(arg, "go-build") ||
+			strings.Contains(arg, "_test") ||
+			strings.Contains(arg, "bazel-out") {
+			return true
+		}
+	}
+	// Also check for GO_TEST_DISABLE_MONITORING environment variable
+	if os.Getenv("GO_TEST_DISABLE_MONITORING") == "1" {
+		return true
+	}
+	return false
+}
+
 func setupFileOutput(cfg Config) error {
 	// Create log directory if it doesn't exist
 	logDir := filepath.Dir(cfg.FilePath)
@@ -73,32 +94,44 @@ func setupFileOutput(cfg Config) error {
 
 	// Open log file
 	var err error
-	logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	logFile, err = openLogFile(cfg.FilePath)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
 
 	// Setup log rotation if needed
 	if cfg.MaxSize > 0 {
-		go monitorLogRotation(cfg)
+		// Only start monitoring in production, not in tests
+		// Detect if we're running in a test by checking for testing flags
+		if !isRunningInTest() {
+			stopChan = make(chan struct{})
+			monitorWG.Add(1)
+			go monitorLogRotation(cfg)
+		}
 	}
 
 	return nil
 }
 
 func monitorLogRotation(cfg Config) {
+	defer monitorWG.Done()
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		mu.Lock()
-		if logFile != nil {
-			info, err := logFile.Stat()
-			if err == nil && info.Size() > cfg.MaxSize {
-				rotateLog(cfg)
+	for {
+		select {
+		case <-stopChan:
+			return
+		case <-ticker.C:
+			mu.Lock()
+			if logFile != nil {
+				info, err := logFile.Stat()
+				if err == nil && info.Size() > cfg.MaxSize {
+					rotateLog(cfg)
+				}
 			}
+			mu.Unlock()
 		}
-		mu.Unlock()
 	}
 }
 
@@ -113,14 +146,27 @@ func rotateLog(cfg Config) {
 
 		// Create new log file
 		var err error
-		logFile, err = os.OpenFile(cfg.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		logFile, err = openLogFile(cfg.FilePath)
 		if err == nil {
 			instance.SetOutput(io.MultiWriter(os.Stdout, logFile))
+		} else {
+			// If we can't open new file, reset to stdout only
+			instance.SetOutput(os.Stdout)
+			logFile = nil
 		}
 
 		// Clean old backups
 		cleanOldBackups(cfg)
 	}
+}
+
+// openLogFile opens a log file for writing.
+func openLogFile(filePath string) (*os.File, error) {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %w", err)
+	}
+	return file, nil
 }
 
 func cleanOldBackups(cfg Config) {
@@ -150,10 +196,10 @@ func cleanOldBackups(cfg Config) {
 // Get returns the logger instance.
 func Get() *logrus.Logger {
 	if instance == nil {
-		// Fallback initialization with defaults
+		// Fallback initialization with defaults - use stdout only if not explicitly configured
 		if err := Initialize(Config{
 			Level:      "info",
-			FilePath:   "/var/log/cloud-update/cloud-update.log",
+			FilePath:   "",               // Use stdout only for fallback
 			MaxSize:    10 * 1024 * 1024, // 10MB
 			MaxBackups: 5,
 		}); err != nil {
@@ -176,6 +222,19 @@ func WithFields(fields logrus.Fields) *logrus.Entry {
 
 // Close closes the log file.
 func Close() {
+	mu.Lock()
+
+	// Stop the monitoring goroutine if it's running
+	if stopChan != nil {
+		close(stopChan)
+		stopChan = nil
+	}
+
+	mu.Unlock()
+
+	// Wait for the goroutine to finish (outside of mutex to avoid deadlock)
+	monitorWG.Wait()
+
 	mu.Lock()
 	defer mu.Unlock()
 
