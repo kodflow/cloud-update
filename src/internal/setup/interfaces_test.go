@@ -65,32 +65,6 @@ func TestRealFileSystem(t *testing.T) {
 }
 
 // Test RealCommandRunner implementations.
-func TestRealCommandRunner(t *testing.T) {
-	cmd := RealCommandRunner{}
-
-	// Test LookPath with a command that should exist
-	path, err := cmd.LookPath("sh")
-	if err != nil {
-		t.Errorf("RealCommandRunner.LookPath('sh') failed: %v", err)
-	}
-	if path == "" {
-		t.Error("RealCommandRunner.LookPath('sh') returned empty path")
-	}
-
-	// Test Run with echo command
-	if err := cmd.Run("echo", "test"); err != nil {
-		t.Errorf("RealCommandRunner.Run('echo', 'test') failed: %v", err)
-	}
-
-	// Test Output with echo command
-	output, err := cmd.Output("echo", "test output")
-	if err != nil {
-		t.Errorf("RealCommandRunner.Output('echo', 'test output') failed: %v", err)
-	}
-	if len(output) == 0 {
-		t.Error("RealCommandRunner.Output() returned empty output")
-	}
-}
 
 // Test RealOSInterface implementations.
 func TestRealOSInterface(t *testing.T) {

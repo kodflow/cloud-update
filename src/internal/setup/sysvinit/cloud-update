@@ -9,10 +9,10 @@
 # Description:       Cloud configuration update service with webhook support
 ### END INIT INFO
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 DESC="Cloud Update Service"
 NAME=cloud-update
-DAEMON=/opt/cloud-update/$NAME
+DAEMON=/usr/local/bin/$NAME
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 LOGFILE=/var/log/$NAME.log

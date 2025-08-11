@@ -25,13 +25,6 @@ func getRebootDelay() time.Duration {
 	return rebootDelay
 }
 
-// setRebootDelay sets the reboot delay value safely.
-func setRebootDelay(d time.Duration) {
-	rebootDelayMu.Lock()
-	defer rebootDelayMu.Unlock()
-	rebootDelay = d
-}
-
 // ActionService defines the interface for action processing.
 type ActionService interface {
 	ProcessAction(req entity.WebhookRequest, jobID string)

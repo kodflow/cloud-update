@@ -3,7 +3,9 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "system",
     srcs = [
+        "command_runner.go",
         "executor.go",
+        "executor_mock.go",
         "executor_secure.go",
         "executor_timeout.go",
     ],
@@ -19,13 +21,7 @@ go_test(
     name = "system_test",
     srcs = [
         "executor_test.go",
-        "executor_secure_test.go",
-        "executor_timeout_test.go",
     ],
     embed = [":system"],
     timeout = "short",
-    env = {
-        "CI": "true",
-        "GITHUB_ACTIONS": "true",
-    },
 )

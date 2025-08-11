@@ -8,6 +8,11 @@ import (
 	"path/filepath"
 )
 
+const (
+	// ServiceName is the name of the cloud-update service.
+	ServiceName = "cloud-update"
+)
+
 // Helper functions that are easily testable.
 
 // CreateDirectory creates a directory with the specified permissions.
@@ -78,26 +83,26 @@ func GetServiceFilePath(initSystem InitSystem) (string, error) {
 func GetServiceCommand(initSystem InitSystem, action string) (string, []string, error) {
 	switch initSystem {
 	case InitSystemd:
-		return "systemctl", []string{action, "cloud-update"}, nil
+		return "systemctl", []string{action, ServiceName}, nil
 	case InitOpenRC:
 		switch action {
 		case "enable":
-			return "rc-update", []string{"add", "cloud-update", "default"}, nil
+			return "rc-update", []string{"add", ServiceName, "default"}, nil
 		case "disable":
-			return "rc-update", []string{"del", "cloud-update"}, nil
+			return "rc-update", []string{"del", ServiceName}, nil
 		case "start", "stop", "restart":
-			return "rc-service", []string{"cloud-update", action}, nil
+			return "rc-service", []string{ServiceName, action}, nil
 		default:
 			return "", nil, fmt.Errorf("unsupported action: %s", action)
 		}
 	case InitSysVInit:
 		switch action {
 		case "enable":
-			return "update-rc.d", []string{"cloud-update", "defaults"}, nil
+			return "update-rc.d", []string{ServiceName, "defaults"}, nil
 		case "disable":
-			return "update-rc.d", []string{"-f", "cloud-update", "remove"}, nil
+			return "update-rc.d", []string{"-f", ServiceName, "remove"}, nil
 		case "start", "stop", "restart":
-			return "service", []string{"cloud-update", action}, nil
+			return "service", []string{ServiceName, action}, nil
 		default:
 			return "", nil, fmt.Errorf("unsupported action: %s", action)
 		}

@@ -15,17 +15,10 @@ fi
 
 DISTRO=$1
 
-# Load environment variables
-if [ -f .env.test ]; then
-    set -o allexport
-    source .env.test
-    set +o allexport
-else
-    # Set default values if .env.test doesn't exist
-    export E2E_SECRET="test-secret-key-for-e2e-testing-purposes-only"
-    export CLOUD_UPDATE_SECRET="test-secret-key-for-e2e-testing-purposes-only"
-    export CLOUD_UPDATE_LOG_LEVEL="debug"
-fi
+# Set default environment variables if not already set
+export E2E_SECRET="${E2E_SECRET:-test-secret-key-for-e2e-testing-purposes-only}"
+export CLOUD_UPDATE_SECRET="${CLOUD_UPDATE_SECRET:-test-secret-key-for-e2e-testing-purposes-only}"
+export CLOUD_UPDATE_LOG_LEVEL="${CLOUD_UPDATE_LOG_LEVEL:-debug}"
 
 # Test configuration
 COMPOSE_FILE="src/test/e2e/docker-compose.yml"
@@ -48,6 +41,8 @@ case $DISTRO in
         exit 1
         ;;
 esac
+
+# Use the correct external port mapping
 
 # Function to test health endpoint
 test_health_endpoint() {
@@ -102,20 +97,17 @@ main() {
     docker compose -f $DOCKER_COMPOSE_FILE stop $DISTRO 2>/dev/null || true
     docker compose -f $DOCKER_COMPOSE_FILE rm -f $DISTRO 2>/dev/null || true
     
-    # Build Linux binary if needed
-    if [ ! -f "bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update" ]; then
-        echo -e "${YELLOW}Building Linux binary with Bazel...${NC}"
-        bazel build --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //src/cmd/cloud-update:cloud-update
+    # Check if binary exists in src/test/e2e
+    if [ ! -f "src/test/e2e/cloud-update" ]; then
+        echo -e "${YELLOW}Binary not found in src/test/e2e/cloud-update${NC}"
+        echo -e "${YELLOW}Please run 'make test/e2e-prep' first${NC}"
+        exit 1
     fi
-    
-    # Create dist directory and copy binary
-    mkdir -p dist/cloud-update_linux_amd64_v1
-    cp -f bazel-bin/src/cmd/cloud-update/cloud-update_/cloud-update dist/cloud-update_linux_amd64_v1/cloud-update
-    chmod 755 dist/cloud-update_linux_amd64_v1/cloud-update
     
     # Build and start container
     echo -e "${YELLOW}Building and starting $DISTRO container...${NC}"
-    docker compose -f $COMPOSE_FILE up -d --build $DISTRO
+    docker compose -f $COMPOSE_FILE build --no-cache $DISTRO
+    docker compose -f $COMPOSE_FILE up -d $DISTRO
     
     # Wait for container to initialize
     echo -e "${YELLOW}Waiting for service to start...${NC}"
@@ -134,7 +126,7 @@ main() {
     
     # Check if the service is installed correctly
     echo -e "${YELLOW}Checking installation...${NC}"
-    if docker exec $CONTAINER test -f /opt/cloud-update/cloud-update; then
+    if docker exec $CONTAINER test -f /usr/local/bin/cloud-update; then
         echo -e "${GREEN}✓ Cloud-update binary installed${NC}"
     else
         echo -e "${RED}✗ Cloud-update binary not found${NC}"

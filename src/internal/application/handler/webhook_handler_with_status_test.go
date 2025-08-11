@@ -13,6 +13,38 @@ import (
 	"github.com/kodflow/cloud-update/src/internal/domain/entity"
 )
 
+// Mock types for testing
+
+// mockActionService is a mock implementation of ActionService interface.
+type mockActionService struct {
+	processFunc func(req entity.WebhookRequest, jobID string)
+	shouldPanic bool
+}
+
+func (m *mockActionService) ProcessAction(req entity.WebhookRequest, jobID string) {
+	if m.processFunc != nil {
+		m.processFunc(req, jobID)
+		return
+	}
+	if m.shouldPanic {
+		panic("test panic")
+	}
+	// Default: do nothing
+}
+
+// mockAuthenticator is a mock implementation of Authenticator interface.
+type mockAuthenticator struct {
+	shouldValidate bool
+	validateFunc   func(r *http.Request, body []byte) bool
+}
+
+func (m *mockAuthenticator) ValidateSignature(r *http.Request, body []byte) bool {
+	if m.validateFunc != nil {
+		return m.validateFunc(r, body)
+	}
+	return m.shouldValidate
+}
+
 // Additional tests for webhook_handler_with_status.go to achieve 100% coverage.
 
 // Helper functions to reduce cyclomatic complexity

@@ -5,8 +5,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/cloud-update
-ExecStart=/opt/cloud-update/cloud-update
+ExecStart=/usr/local/bin/cloud-update
 Restart=always
 RestartSec=10
 EnvironmentFile=/etc/cloud-update/config.env

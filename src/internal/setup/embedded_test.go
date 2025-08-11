@@ -187,7 +187,7 @@ func TestEmbeddedScripts_NoSecrets(t *testing.T) {
 func TestEmbeddedScripts_Paths(t *testing.T) {
 	// Test that scripts reference appropriate paths
 	expectedPaths := []string{
-		"/opt/cloud-update",
+		"/usr/local/bin",
 		"/etc/cloud-update",
 	}
 
@@ -244,7 +244,7 @@ func TestEmbeddedSystemdService_Specific(t *testing.T) {
 		},
 		{
 			name:          "exec start path",
-			expectedText:  "/opt/cloud-update/cloud-update",
+			expectedText:  "/usr/local/bin/cloud-update",
 			shouldContain: true,
 			description:   "Systemd service should reference correct binary path",
 		},

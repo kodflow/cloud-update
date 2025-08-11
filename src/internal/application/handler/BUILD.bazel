@@ -25,7 +25,8 @@ go_test(
     name = "handler_test",
     srcs = [
         "health_handler_test.go",
-        "webhook_handler_test.go",
+        "webhook_handler_pool_test.go",
+        "webhook_handler_with_status_test.go",
     ],
     embed = [":handler"],
     deps = ["//src/internal/domain/entity"],

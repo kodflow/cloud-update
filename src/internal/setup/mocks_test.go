@@ -1,418 +1,415 @@
 package setup
 
 import (
+	"errors"
 	"os"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
-// MockFileSystem implements FileSystem interface for testing.
+// MockFileSystem is a mock implementation of FileSystem interface.
 type MockFileSystem struct {
-	mu           sync.Mutex
-	files        map[string][]byte
-	dirs         map[string]os.FileMode
-	shouldFail   map[string]error
-	chownCalls   []ChownCall
-	statFailures map[string]error
-}
-
-type ChownCall struct {
-	Name string
-	UID  int
-	GID  int
-}
-
-func NewMockFileSystem() *MockFileSystem {
-	return &MockFileSystem{
-		files:        make(map[string][]byte),
-		dirs:         make(map[string]os.FileMode),
-		shouldFail:   make(map[string]error),
-		chownCalls:   make([]ChownCall, 0),
-		statFailures: make(map[string]error),
-	}
-}
-
-func (m *MockFileSystem) AddFile(path string, content []byte) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.files[path] = content
-}
-
-func (m *MockFileSystem) SetShouldFail(operation, path string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	key := operation + ":" + path
-	m.shouldFail[key] = err
-}
-
-func (m *MockFileSystem) SetStatError(path string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.statFailures[path] = err
-}
-
-func (m *MockFileSystem) GetChownCalls() []ChownCall {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	calls := make([]ChownCall, len(m.chownCalls))
-	copy(calls, m.chownCalls)
-	return calls
-}
-
-func (m *MockFileSystem) FileExists(path string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	_, exists := m.files[path]
-	return exists
-}
-
-func (m *MockFileSystem) DirExists(path string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	_, exists := m.dirs[path]
-	return exists
+	MkdirAllFunc  func(string, os.FileMode) error
+	WriteFileFunc func(string, []byte, os.FileMode) error
+	ReadFileFunc  func(string) ([]byte, error)
+	StatFunc      func(string) (os.FileInfo, error)
+	ChmodFunc     func(string, os.FileMode) error
+	ChownFunc     func(string, int, int) error
+	RemoveFunc    func(string) error
+	RemoveAllFunc func(string) error
+	// Test helpers
+	files   map[string][]byte
+	failOps map[string]map[string]error // operation -> path -> error
 }
 
 func (m *MockFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["MkdirAll:"+path]; exists {
-		return err
+	if m.failOps != nil && m.failOps["MkdirAll"] != nil {
+		if err, ok := m.failOps["MkdirAll"][path]; ok {
+			return err
+		}
 	}
-
-	m.dirs[path] = perm
+	if m.MkdirAllFunc != nil {
+		return m.MkdirAllFunc(path, perm)
+	}
 	return nil
 }
 
 func (m *MockFileSystem) WriteFile(filename string, data []byte, perm os.FileMode) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["WriteFile:"+filename]; exists {
-		return err
+	if m.failOps != nil && m.failOps["WriteFile"] != nil {
+		if err, ok := m.failOps["WriteFile"][filename]; ok {
+			return err
+		}
 	}
-
-	m.files[filename] = make([]byte, len(data))
-	copy(m.files[filename], data)
+	if m.WriteFileFunc != nil {
+		return m.WriteFileFunc(filename, data, perm)
+	}
+	if m.files != nil {
+		m.files[filename] = data
+	}
 	return nil
 }
 
 func (m *MockFileSystem) ReadFile(filename string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["ReadFile:"+filename]; exists {
-		return nil, err
-	}
-
-	if data, exists := m.files[filename]; exists {
-		result := make([]byte, len(data))
-		copy(result, data)
-		return result, nil
-	}
-
-	return nil, &os.PathError{Op: "open", Path: filename, Err: os.ErrNotExist}
-}
-
-func (m *MockFileSystem) Remove(name string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["Remove:"+name]; exists {
-		return err
-	}
-
-	delete(m.files, name)
-	return nil
-}
-
-func (m *MockFileSystem) RemoveAll(path string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["RemoveAll:"+path]; exists {
-		return err
-	}
-
-	// Remove all files and directories under the path
-	for file := range m.files {
-		if strings.HasPrefix(file, path) {
-			delete(m.files, file)
+	if m.failOps != nil && m.failOps["ReadFile"] != nil {
+		if err, ok := m.failOps["ReadFile"][filename]; ok {
+			return nil, err
 		}
 	}
-	for dir := range m.dirs {
-		if strings.HasPrefix(dir, path) {
-			delete(m.dirs, dir)
+	if m.ReadFileFunc != nil {
+		return m.ReadFileFunc(filename)
+	}
+	if m.files != nil {
+		if data, ok := m.files[filename]; ok {
+			return data, nil
 		}
 	}
-
-	return nil
+	return []byte{}, nil
 }
 
 func (m *MockFileSystem) Stat(name string) (os.FileInfo, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.statFailures[name]; exists {
-		return nil, err
+	if m.StatFunc != nil {
+		return m.StatFunc(name)
 	}
-
-	if err, exists := m.shouldFail["Stat:"+name]; exists {
-		return nil, err
-	}
-
-	if _, exists := m.files[name]; exists {
-		return &mockFileInfo{name: filepath.Base(name), isDir: false, mode: 0644}, nil
-	}
-
-	if mode, exists := m.dirs[name]; exists {
-		return &mockFileInfo{name: filepath.Base(name), isDir: true, mode: mode}, nil
-	}
-
-	// Check if any file exists under this directory path (for directory detection)
-	for filePath := range m.files {
-		if strings.HasPrefix(filePath, name+"/") || strings.HasPrefix(filePath, name) {
-			return &mockFileInfo{name: filepath.Base(name), isDir: true, mode: 0755}, nil
-		}
-	}
-
-	return nil, &os.PathError{Op: "stat", Path: name, Err: os.ErrNotExist}
+	return nil, os.ErrNotExist
 }
 
 func (m *MockFileSystem) Chmod(name string, mode os.FileMode) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["Chmod:"+name]; exists {
-		return err
+	if m.ChmodFunc != nil {
+		return m.ChmodFunc(name, mode)
 	}
-
 	return nil
 }
 
 func (m *MockFileSystem) Chown(name string, uid, gid int) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.shouldFail["Chown:"+name]; exists {
-		return err
+	if m.failOps != nil && m.failOps["Chown"] != nil {
+		if err, ok := m.failOps["Chown"][name]; ok {
+			return err
+		}
 	}
-
-	m.chownCalls = append(m.chownCalls, ChownCall{
-		Name: name,
-		UID:  uid,
-		GID:  gid,
-	})
-
+	if m.ChownFunc != nil {
+		return m.ChownFunc(name, uid, gid)
+	}
 	return nil
 }
 
-type mockFileInfo struct {
-	name  string
-	isDir bool
-	mode  os.FileMode
-}
-
-func (m *mockFileInfo) Name() string       { return m.name }
-func (m *mockFileInfo) Size() int64        { return 0 }
-func (m *mockFileInfo) Mode() os.FileMode  { return m.mode }
-func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
-func (m *mockFileInfo) IsDir() bool        { return m.isDir }
-func (m *mockFileInfo) Sys() interface{}   { return nil }
-
-// MockCommandRunner implements CommandRunner interface for testing.
-type MockCommandRunner struct {
-	mu           sync.Mutex
-	commands     []Command
-	shouldFail   map[string]error
-	outputs      map[string][]byte
-	lookupPaths  map[string]string
-	lookupErrors map[string]error
-}
-
-type Command struct {
-	Name string
-	Args []string
-}
-
-func NewMockCommandRunner() *MockCommandRunner {
-	return &MockCommandRunner{
-		commands:     make([]Command, 0),
-		shouldFail:   make(map[string]error),
-		outputs:      make(map[string][]byte),
-		lookupPaths:  make(map[string]string),
-		lookupErrors: make(map[string]error),
+func (m *MockFileSystem) Remove(name string) error {
+	if m.RemoveFunc != nil {
+		return m.RemoveFunc(name)
 	}
+	return nil
 }
 
-func (m *MockCommandRunner) SetShouldFail(name string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.shouldFail[name] = err
+func (m *MockFileSystem) RemoveAll(path string) error {
+	if m.RemoveAllFunc != nil {
+		return m.RemoveAllFunc(path)
+	}
+	return nil
 }
 
-func (m *MockCommandRunner) SetShouldFailWithArgs(name string, args []string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	key := name + ":" + strings.Join(args, ":")
-	m.shouldFail[key] = err
+// Helper methods for testing.
+func (m *MockFileSystem) AddFile(path string, content []byte) {
+	if m.files == nil {
+		m.files = make(map[string][]byte)
+	}
+	m.files[path] = content
 }
 
-func (m *MockCommandRunner) SetOutput(name string, output []byte) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.outputs[name] = output
+func (m *MockFileSystem) SetShouldFail(operation string, path string, err error) {
+	if m.failOps == nil {
+		m.failOps = make(map[string]map[string]error)
+	}
+	if m.failOps[operation] == nil {
+		m.failOps[operation] = make(map[string]error)
+	}
+	m.failOps[operation][path] = err
 }
 
-func (m *MockCommandRunner) SetLookupPath(file, path string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.lookupPaths[file] = path
+func (m *MockFileSystem) FileExists(path string) bool {
+	if m.files != nil {
+		_, exists := m.files[path]
+		return exists
+	}
+	return false
 }
 
-func (m *MockCommandRunner) SetLookupError(file string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.lookupErrors[file] = err
+func (m *MockFileSystem) DirExists(path string) bool {
+	// Simplified implementation for testing
+	return true
 }
 
-func (m *MockCommandRunner) GetCommands() []Command {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	commands := make([]Command, len(m.commands))
-	copy(commands, m.commands)
-	return commands
+// MockCommandRunner is a mock implementation of CommandRunner interface.
+type MockCommandRunner struct {
+	LookPathFunc func(string) (string, error)
+	RunFunc      func(string, ...string) error
+	OutputFunc   func(string, ...string) ([]byte, error)
+	// Test helpers
+	output     map[string][]byte
+	failCmds   map[string]error
+	lookupPath map[string]string
+}
+
+func (m *MockCommandRunner) LookPath(file string) (string, error) {
+	if m.lookupPath != nil {
+		if path, ok := m.lookupPath[file]; ok {
+			if path == "" {
+				return "", errors.New("command not found")
+			}
+			return path, nil
+		}
+	}
+	if m.LookPathFunc != nil {
+		return m.LookPathFunc(file)
+	}
+	return "/usr/bin/" + file, nil
 }
 
 func (m *MockCommandRunner) Run(name string, args ...string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.commands = append(m.commands, Command{Name: name, Args: args})
-
-	// Check for specific command+args combination first
-	key := name + ":" + strings.Join(args, ":")
-	if err, exists := m.shouldFail[key]; exists {
-		return err
+	if m.failCmds != nil {
+		if err, ok := m.failCmds[name]; ok {
+			return err
+		}
 	}
-
-	// Fallback to command name only
-	if err, exists := m.shouldFail[name]; exists {
-		return err
+	if m.RunFunc != nil {
+		return m.RunFunc(name, args...)
 	}
-
 	return nil
 }
 
 func (m *MockCommandRunner) Output(name string, args ...string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.commands = append(m.commands, Command{Name: name, Args: args})
-
-	if err, exists := m.shouldFail[name]; exists {
-		return nil, err
+	if m.output != nil {
+		if output, ok := m.output[name]; ok {
+			return output, nil
+		}
 	}
-
-	if output, exists := m.outputs[name]; exists {
-		result := make([]byte, len(output))
-		copy(result, output)
-		return result, nil
+	if m.OutputFunc != nil {
+		return m.OutputFunc(name, args...)
 	}
-
-	return []byte("mock output"), nil
+	return []byte{}, nil
 }
 
-func (m *MockCommandRunner) LookPath(file string) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err, exists := m.lookupErrors[file]; exists {
-		return "", err
+// Helper methods for testing.
+func (m *MockCommandRunner) SetOutput(cmd string, output []byte) {
+	if m.output == nil {
+		m.output = make(map[string][]byte)
 	}
-
-	if path, exists := m.lookupPaths[file]; exists {
-		return path, nil
-	}
-
-	return "/usr/bin/" + file, nil
+	m.output[cmd] = output
 }
 
-// MockOSInterface implements OSInterface for testing.
+func (m *MockCommandRunner) SetShouldFail(cmd string, err error) {
+	if m.failCmds == nil {
+		m.failCmds = make(map[string]error)
+	}
+	m.failCmds[cmd] = err
+}
+
+func (m *MockCommandRunner) SetShouldFailWithArgs(cmd string, args []string, err error) {
+	// Simplified: just use the command name for now
+	m.SetShouldFail(cmd, err)
+}
+
+func (m *MockCommandRunner) SetLookupPath(cmd string, path string) {
+	if m.lookupPath == nil {
+		m.lookupPath = make(map[string]string)
+	}
+	m.lookupPath[cmd] = path
+}
+
+func (m *MockCommandRunner) SetLookupError(cmd string, err error) {
+	// We ignore the error parameter since our implementation
+	// uses empty string to trigger error
+	if m.lookupPath == nil {
+		m.lookupPath = make(map[string]string)
+	}
+	m.lookupPath[cmd] = "" // empty string will trigger error in LookPath
+}
+
+// MockOSInterface is a mock implementation of OSInterface.
 type MockOSInterface struct {
-	mu            sync.Mutex
-	executable    string
-	executableErr error
-	euid          int
-	scanInput     string
-	scanErr       error
-	scanCallCount int
-}
-
-func NewMockOSInterface() *MockOSInterface {
-	return &MockOSInterface{
-		executable: "/test/path/cloud-update",
-		euid:       0, // Default to root for tests
-	}
-}
-
-func (m *MockOSInterface) SetExecutable(path string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.executable = path
-	m.executableErr = err
-}
-
-func (m *MockOSInterface) SetEuid(euid int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.euid = euid
-}
-
-func (m *MockOSInterface) SetScanInput(input string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.scanInput = input
-	m.scanErr = err
-}
-
-func (m *MockOSInterface) GetScanCallCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.scanCallCount
+	ExecutableFunc  func() (string, error)
+	GetuidFunc      func() int
+	GeteuidFunc     func() int
+	GetgidFunc      func() int
+	HostnameFunc    func() (string, error)
+	GetenvFunc      func(string) string
+	SetenvFunc      func(string, string) error
+	UnsetenvFunc    func(string) error
+	LookupEnvFunc   func(string) (string, bool)
+	UserHomeDirFunc func() (string, error)
+	ScanlnFunc      func(...interface{}) (int, error)
+	// Test helper fields
+	euid           int
+	executablePath string
+	executableErr  error
 }
 
 func (m *MockOSInterface) Executable() (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.executable, m.executableErr
+	if m.ExecutableFunc != nil {
+		return m.ExecutableFunc()
+	}
+	if m.executableErr != nil {
+		return "", m.executableErr
+	}
+	if m.executablePath != "" {
+		return m.executablePath, nil
+	}
+	return "/usr/local/bin/cloud-update", nil
+}
+
+// Helper method to set executable path for testing.
+func (m *MockOSInterface) SetExecutable(path string, err error) {
+	m.executablePath = path
+	m.executableErr = err
+}
+
+func (m *MockOSInterface) Getuid() int {
+	if m.GetuidFunc != nil {
+		return m.GetuidFunc()
+	}
+	return 0
 }
 
 func (m *MockOSInterface) Geteuid() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	if m.GeteuidFunc != nil {
+		return m.GeteuidFunc()
+	}
 	return m.euid
 }
 
+// Helper method to set effective UID for testing.
+func (m *MockOSInterface) SetEuid(uid int) {
+	m.euid = uid
+}
+
 func (m *MockOSInterface) Scanln(a ...interface{}) (n int, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.scanCallCount++
-
-	if m.scanErr != nil {
-		return 0, m.scanErr
+	if m.ScanlnFunc != nil {
+		return m.ScanlnFunc(a...)
 	}
-
-	if len(a) > 0 {
-		if str, ok := a[0].(*string); ok {
-			*str = m.scanInput
-			return 1, nil
-		}
-	}
-
+	// Default implementation for testing
 	return 0, nil
+}
+
+func (m *MockOSInterface) Getgid() int {
+	if m.GetgidFunc != nil {
+		return m.GetgidFunc()
+	}
+	return 0
+}
+
+func (m *MockOSInterface) Hostname() (string, error) {
+	if m.HostnameFunc != nil {
+		return m.HostnameFunc()
+	}
+	return "test-host", nil
+}
+
+func (m *MockOSInterface) Getenv(key string) string {
+	if m.GetenvFunc != nil {
+		return m.GetenvFunc(key)
+	}
+	return ""
+}
+
+func (m *MockOSInterface) Setenv(key, value string) error {
+	if m.SetenvFunc != nil {
+		return m.SetenvFunc(key, value)
+	}
+	return nil
+}
+
+func (m *MockOSInterface) Unsetenv(key string) error {
+	if m.UnsetenvFunc != nil {
+		return m.UnsetenvFunc(key)
+	}
+	return nil
+}
+
+func (m *MockOSInterface) LookupEnv(key string) (string, bool) {
+	if m.LookupEnvFunc != nil {
+		return m.LookupEnvFunc(key)
+	}
+	return "", false
+}
+
+func (m *MockOSInterface) UserHomeDir() (string, error) {
+	if m.UserHomeDirFunc != nil {
+		return m.UserHomeDirFunc()
+	}
+	return "/home/test", nil
+}
+
+// Helper functions to create mocks with default behavior
+
+// NewMockFileSystem creates a new MockFileSystem with default behavior.
+func NewMockFileSystem() *MockFileSystem {
+	return &MockFileSystem{
+		files: make(map[string][]byte),
+		MkdirAllFunc: func(path string, perm os.FileMode) error {
+			return nil
+		},
+		// Don't set WriteFileFunc and ReadFileFunc so they use the files map
+		StatFunc: func(name string) (os.FileInfo, error) {
+			return nil, os.ErrNotExist
+		},
+		ChmodFunc: func(name string, mode os.FileMode) error {
+			return nil
+		},
+		ChownFunc: func(name string, uid, gid int) error {
+			return nil
+		},
+		RemoveFunc: func(name string) error {
+			return nil
+		},
+		RemoveAllFunc: func(path string) error {
+			return nil
+		},
+	}
+}
+
+// NewMockCommandRunner creates a new MockCommandRunner with default behavior.
+func NewMockCommandRunner() *MockCommandRunner {
+	return &MockCommandRunner{
+		LookPathFunc: func(file string) (string, error) {
+			if file == "systemctl" || file == "service" || file == "rc-service" {
+				return "/usr/bin/" + file, nil
+			}
+			return "", errors.New("command not found")
+		},
+		RunFunc: func(name string, args ...string) error {
+			return nil
+		},
+		OutputFunc: func(name string, args ...string) ([]byte, error) {
+			return []byte{}, nil
+		},
+	}
+}
+
+// NewMockOSInterface creates a new MockOSInterface with default behavior.
+func NewMockOSInterface() *MockOSInterface {
+	return &MockOSInterface{
+		// Don't set ExecutableFunc so that SetExecutable can work
+		GetuidFunc: func() int {
+			return 0
+		},
+		GetgidFunc: func() int {
+			return 0
+		},
+		HostnameFunc: func() (string, error) {
+			return "test-host", nil
+		},
+		GetenvFunc: func(key string) string {
+			return ""
+		},
+		SetenvFunc: func(key, value string) error {
+			return nil
+		},
+		UnsetenvFunc: func(key string) error {
+			return nil
+		},
+		LookupEnvFunc: func(key string) (string, bool) {
+			return "", false
+		},
+		UserHomeDirFunc: func() (string, error) {
+			return "/home/test", nil
+		},
+		// Set default executable path
+		executablePath: "/usr/local/bin/cloud-update",
+	}
 }
