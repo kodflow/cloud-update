@@ -29,7 +29,7 @@ func TestWebhookHandlerWithPoolCleanup(t *testing.T) {
 	actionService := &MockActionServiceSimple{}
 	authenticator := &MockAuthenticator{}
 	workerPool := worker.NewPool(2, 10)
-	defer workerPool.Shutdown(5 * time.Second)
+	defer func() { _ = workerPool.Shutdown(5 * time.Second) }()
 
 	handler := NewWebhookHandlerWithPool(actionService, authenticator, workerPool)
 

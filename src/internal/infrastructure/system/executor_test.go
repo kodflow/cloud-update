@@ -384,11 +384,14 @@ func TestDefaultExecutor_UpdateSystemAllDistros(t *testing.T) {
 				return
 			}
 
-			// For unknown distribution, check error message
+			// For unknown distribution, check specific error message
 			if tt.distro == DistroUnknown && err != nil {
-				if !strings.Contains(err.Error(), "unsupported distribution") {
-					t.Errorf("UpdateSystem() error = %v, want error containing 'unsupported distribution'", err)
+				expectedMsg := "unsupported distribution"
+				if !strings.Contains(err.Error(), expectedMsg) {
+					t.Errorf("UpdateSystem() error = %v, want error containing %q", err, expectedMsg)
 				}
+			} else if tt.distro == DistroUnknown && err == nil {
+				t.Error("UpdateSystem() should return error for unknown distribution")
 			}
 		})
 	}

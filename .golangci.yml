@@ -1,5 +1,5 @@
 # golangci-lint configuration file
-# version: v1
+version: 2
 
 run:
   build-tags:

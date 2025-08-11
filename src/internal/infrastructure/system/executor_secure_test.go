@@ -123,6 +123,16 @@ func (m *MockExecutor) GetExecutedCommands() []MockCommand {
 	return result
 }
 
+// mockSecureExecutorWithDistro wraps SecureExecutor to override DetectDistribution.
+type mockSecureExecutorWithDistro struct {
+	*SecureExecutor
+	distribution Distribution
+}
+
+func (m *mockSecureExecutorWithDistro) DetectDistribution() Distribution {
+	return m.distribution
+}
+
 func TestNewSecureExecutor(t *testing.T) {
 	executor := NewSecureExecutor()
 
@@ -349,9 +359,13 @@ func TestSecureExecutor_UpdateSystem(t *testing.T) {
 				t.Skip(tt.skipReason)
 			}
 
-			executor := &SecureExecutor{
-				privilegeCmd: tt.privilegeCmd,
-				timeout:      1 * time.Second,
+			// Create a mock executor that returns the specified distribution
+			executor := &mockSecureExecutorWithDistro{
+				SecureExecutor: &SecureExecutor{
+					privilegeCmd: tt.privilegeCmd,
+					timeout:      1 * time.Second,
+				},
+				distribution: tt.distribution,
 			}
 
 			err := executor.UpdateSystem()
