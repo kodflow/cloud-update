@@ -32,15 +32,15 @@ COMPOSE_FILE="src/test/e2e/docker-compose.yml"
 case $DISTRO in
     alpine)
         CONTAINER="cloud-update-alpine"
-        PORT="${E2E_PORT_ALPINE:-9991}"
+        PORT="${E2E_PORT_ALPINE:-8081}"
         ;;
     ubuntu)
         CONTAINER="cloud-update-ubuntu"
-        PORT="${E2E_PORT_UBUNTU:-9992}"
+        PORT="${E2E_PORT_UBUNTU:-8082}"
         ;;
     debian)
         CONTAINER="cloud-update-debian"
-        PORT="${E2E_PORT_DEBIAN:-9993}"
+        PORT="${E2E_PORT_DEBIAN:-8083}"
         ;;
     *)
         echo -e "${RED}Invalid distribution: $DISTRO${NC}"

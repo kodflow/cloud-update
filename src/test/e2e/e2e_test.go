@@ -16,7 +16,7 @@ import (
 
 const (
 	testSecret = "test-secret-key-for-e2e-testing-purposes-only"
-	baseURL    = "http://localhost:9999"
+	baseURL    = "http://localhost:8080"
 )
 
 type TestClient struct {

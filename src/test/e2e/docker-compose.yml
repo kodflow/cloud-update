@@ -1,7 +1,7 @@
 # Common configuration using YAML anchors
 x-common-environment: &common-env
   CLOUD_UPDATE_SECRET: ${E2E_SECRET}
-  CLOUD_UPDATE_PORT: 9999
+  CLOUD_UPDATE_PORT: 8080
   CLOUD_UPDATE_LOG_LEVEL: ${CLOUD_UPDATE_LOG_LEVEL:-debug}
 
 x-common-config: &common-config
@@ -19,7 +19,7 @@ services:
       dockerfile: src/test/e2e/Dockerfile.alpine
     container_name: cloud-update-alpine
     ports:
-      - '${E2E_PORT_ALPINE:-9991}:9999'
+      - '${E2E_PORT_ALPINE:-8081}:8080'
     environment:
       <<: *common-env
 
@@ -31,7 +31,7 @@ services:
       dockerfile: src/test/e2e/Dockerfile.ubuntu
     container_name: cloud-update-ubuntu
     ports:
-      - '${E2E_PORT_UBUNTU:-9992}:9999'
+      - '${E2E_PORT_UBUNTU:-8082}:8080'
     environment:
       <<: *common-env
 
@@ -43,7 +43,7 @@ services:
       dockerfile: src/test/e2e/Dockerfile.debian
     container_name: cloud-update-debian
     ports:
-      - '${E2E_PORT_DEBIAN:-9993}:9999'
+      - '${E2E_PORT_DEBIAN:-8083}:8080'
     environment:
       <<: *common-env
 

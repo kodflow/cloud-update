@@ -22,7 +22,7 @@ RUN chmod 755 /app/cloud-update /app/install.sh
 
 # Set test environment variables
 ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e-testing-purposes-only
-ENV CLOUD_UPDATE_PORT=9999
+ENV CLOUD_UPDATE_PORT=8080
 ENV CLOUD_UPDATE_LOG_LEVEL=debug
 
 # Run installation with sh (POSIX-compliant)
@@ -30,9 +30,9 @@ RUN sh /app/install.sh
 
 # Health check
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:9999/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
-EXPOSE 9999
+EXPOSE 8080
 
 # Start the service directly
 CMD ["/opt/cloud-update/cloud-update"]
