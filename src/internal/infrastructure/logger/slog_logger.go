@@ -186,12 +186,13 @@ func Rotate() error {
 // LogDebug logs debug with optimized caller info.
 func LogDebug(msg string, args ...any) {
 	checkRotation()
+	logger := GetSlog()
 	ctx := context.Background()
-	if !slogInstance.Enabled(ctx, slog.LevelDebug) {
+	if !logger.Enabled(ctx, slog.LevelDebug) {
 		return
 	}
 	_, file, line, _ := runtime.Caller(1)
-	slogInstance.LogAttrs(ctx, slog.LevelDebug, msg,
+	logger.LogAttrs(ctx, slog.LevelDebug, msg,
 		slog.String("caller", fmt.Sprintf("%s:%d", filepath.Base(file), line)),
 		slog.Group("data", args...))
 }
@@ -199,14 +200,14 @@ func LogDebug(msg string, args ...any) {
 // LogInfo logs info level.
 func LogInfo(msg string, args ...any) {
 	checkRotation()
-	slogInstance.LogAttrs(context.Background(), slog.LevelInfo, msg,
+	GetSlog().LogAttrs(context.Background(), slog.LevelInfo, msg,
 		slog.Group("data", args...))
 }
 
 // LogWarn logs warning level.
 func LogWarn(msg string, args ...any) {
 	checkRotation()
-	slogInstance.LogAttrs(context.Background(), slog.LevelWarn, msg,
+	GetSlog().LogAttrs(context.Background(), slog.LevelWarn, msg,
 		slog.Group("data", args...))
 }
 
@@ -215,13 +216,15 @@ func LogError(msg string, err error, args ...any) {
 	checkRotation()
 	_, file, line, _ := runtime.Caller(1)
 	attrs := []slog.Attr{
-		slog.String("error", err.Error()),
 		slog.String("caller", fmt.Sprintf("%s:%d", filepath.Base(file), line)),
+	}
+	if err != nil {
+		attrs = append(attrs, slog.String("error", err.Error()))
 	}
 	if len(args) > 0 {
 		attrs = append(attrs, slog.Group("data", args...))
 	}
-	slogInstance.LogAttrs(context.Background(), slog.LevelError, msg, attrs...)
+	GetSlog().LogAttrs(context.Background(), slog.LevelError, msg, attrs...)
 }
 
 // CloseSlog closes the slog file.
