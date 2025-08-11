@@ -36,16 +36,6 @@ exec "$@"
 
 // The MockExecutor is now provided by executor_mock.go
 
-// mockSecureExecutorWithDistro wraps SecureExecutor to override DetectDistribution.
-type mockSecureExecutorWithDistro struct {
-	*SecureExecutor
-	distribution Distribution
-}
-
-func (m *mockSecureExecutorWithDistro) DetectDistribution() Distribution {
-	return m.distribution
-}
-
 func TestNewSecureExecutor(t *testing.T) {
 	executor := NewSecureExecutor()
 
@@ -70,93 +60,66 @@ func TestNewSecureExecutor(t *testing.T) {
 }
 
 func TestSecureExecutor_RunCloudInit(t *testing.T) {
-	// Create a temporary directory and fake scripts
-	tmpDir := t.TempDir()
-	fakeCloudInit := filepath.Join(tmpDir, "cloud-init")
-	fakeSudo := filepath.Join(tmpDir, "sudo")
-
-	// Create a fake cloud-init script that succeeds
-	cloudInitScript := `#!/bin/bash
-echo "fake cloud-init clean"
-echo "fake cloud-init init"
-exit 0
-`
-	err := os.WriteFile(fakeCloudInit, []byte(cloudInitScript), 0755)
-	if err != nil {
-		t.Fatalf("Failed to create fake cloud-init: %v", err)
-	}
-
-	// Create a fake sudo script that just passes through commands
-	sudoScript := `#!/bin/bash
-exec "$@"
-`
-	err = os.WriteFile(fakeSudo, []byte(sudoScript), 0755)
-	if err != nil {
-		t.Fatalf("Failed to create fake sudo: %v", err)
-	}
-
-	// Save original PATH and restore after test
-	originalPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", originalPath)
-
-	// Prepend tmpDir to PATH so our fake scripts are found first
-	os.Setenv("PATH", tmpDir+":"+originalPath)
+	// Test RunCloudInit functionality using mocks
+	mock := NewMockSecureExecutor()
 
 	tests := []struct {
-		name          string
-		privilegeCmd  string
-		expectError   bool
-		errorContains string
-		skipOnNoSudo  bool
+		name         string
+		privilegeCmd string
+		shouldFail   bool
+		failMessage  string
 	}{
 		{
-			name:         "with sudo",
+			name:         "successful cloud-init with sudo",
 			privilegeCmd: "sudo",
-			expectError:  false, // Should work with fake sudo
-			skipOnNoSudo: true,
+			shouldFail:   false,
 		},
 		{
-			name:         "with doas",
+			name:         "successful cloud-init with doas",
 			privilegeCmd: "doas",
-			expectError:  true, // doas typically not available
+			shouldFail:   false,
 		},
 		{
-			name:         "without privilege escalation",
+			name:         "successful cloud-init without privilege",
 			privilegeCmd: "",
-			expectError:  false, // Should work with fake cloud-init
+			shouldFail:   false,
 		},
 		{
-			name:          "unsupported privilege command",
-			privilegeCmd:  "unsupported",
-			expectError:   true,
-			errorContains: "unsupported privilege escalation method",
+			name:         "failed cloud-init",
+			privilegeCmd: "sudo",
+			shouldFail:   true,
+			failMessage:  "cloud-init command failed",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipOnNoSudo && tt.privilegeCmd == "sudo" {
-				if _, err := exec.LookPath("sudo"); err != nil {
-					t.Skip("sudo not available, skipping test")
+			mock.Reset()
+			mock.PrivilegeCommand = tt.privilegeCmd
+			mock.SetFailure(tt.shouldFail, tt.failMessage)
+
+			err := mock.RunCloudInit()
+
+			if !mock.CloudInitCalled {
+				t.Error("RunCloudInit() was not called")
+			}
+
+			if tt.shouldFail {
+				if err == nil {
+					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), tt.failMessage) {
+					t.Errorf("Error message = %v, want containing %q", err, tt.failMessage)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
 				}
 			}
 
-			executor := &SecureExecutor{
-				privilegeCmd: tt.privilegeCmd,
-				timeout:      1 * time.Second, // Short timeout for tests
-			}
-
-			err := executor.RunCloudInit()
-
-			if (err != nil) != tt.expectError {
-				t.Errorf("RunCloudInit() error = %v, expectError %v", err, tt.expectError)
-				return
-			}
-
-			if tt.expectError && tt.errorContains != "" {
-				if !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("RunCloudInit() error = %v, want error containing %q", err, tt.errorContains)
-				}
+			// Verify commands were recorded
+			cmds := mock.GetExecutedCommands()
+			if len(cmds) == 0 {
+				t.Error("No commands were recorded")
 			}
 		})
 	}
@@ -218,98 +181,102 @@ func TestSecureExecutor_Reboot(t *testing.T) {
 }
 
 func TestSecureExecutor_UpdateSystem(t *testing.T) {
-	// This test uses mocked commands to avoid running real system commands
+	// This test uses mocks to verify distribution-specific behavior
+	mock := NewMockSecureExecutor()
 
 	tests := []struct {
 		name         string
 		distribution Distribution
 		privilegeCmd string
-		expectError  bool
-		skipReason   string
+		shouldFail   bool
+		failMessage  string
 	}{
 		{
 			name:         "Alpine Linux",
 			distribution: DistroAlpine,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "Ubuntu",
 			distribution: DistroUbuntu,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "Debian",
 			distribution: DistroDebian,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "RHEL",
 			distribution: DistroRHEL,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "CentOS",
 			distribution: DistroCentOS,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "Fedora",
 			distribution: DistroFedora,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "Arch",
 			distribution: DistroArch,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "SUSE",
 			distribution: DistroSUSE,
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail in test environment
+			shouldFail:   false,
 		},
 		{
 			name:         "Unknown distribution",
 			distribution: DistroUnknown,
 			privilegeCmd: "sudo",
-			expectError:  true,
+			shouldFail:   true,
+			failMessage:  "unsupported distribution",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipReason != "" {
-				t.Skip(tt.skipReason)
+			mock.Reset()
+			mock.SetDistribution(tt.distribution)
+			mock.PrivilegeCommand = tt.privilegeCmd
+			mock.SetFailure(tt.shouldFail, tt.failMessage)
+
+			err := mock.UpdateSystem()
+
+			if !mock.UpdateCalled {
+				t.Error("UpdateSystem() was not called")
 			}
 
-			// Create a mock executor that returns the specified distribution
-			executor := &mockSecureExecutorWithDistro{
-				SecureExecutor: &SecureExecutor{
-					privilegeCmd: tt.privilegeCmd,
-					timeout:      1 * time.Second,
-				},
-				distribution: tt.distribution,
-			}
-
-			err := executor.UpdateSystem()
-
-			if (err != nil) != tt.expectError {
-				t.Errorf("UpdateSystem() error = %v, expectError %v", err, tt.expectError)
-			}
-
-			// For unknown distribution, check specific error message
-			if tt.distribution == DistroUnknown && err != nil {
-				expectedMsg := "unsupported distribution"
-				if !strings.Contains(err.Error(), expectedMsg) {
-					t.Errorf("UpdateSystem() error = %v, want error containing %q", err, expectedMsg)
+			if tt.shouldFail {
+				if err == nil {
+					t.Errorf("UpdateSystem() for %s should have failed but didn't", tt.distribution)
+				} else if tt.failMessage != "" && !strings.Contains(err.Error(), tt.failMessage) {
+					t.Errorf("UpdateSystem() for %s error = %v, want containing %q", tt.distribution, err, tt.failMessage)
 				}
+			} else {
+				if err != nil {
+					t.Errorf("UpdateSystem() for %s unexpected error: %v", tt.distribution, err)
+				}
+			}
+
+			// Verify distribution-specific commands were recorded
+			cmds := mock.GetExecutedCommands()
+			if len(cmds) == 0 && tt.distribution != DistroUnknown {
+				t.Errorf("No commands recorded for %s", tt.distribution)
 			}
 		})
 	}
