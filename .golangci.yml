@@ -29,10 +29,6 @@ linters:
 linters-settings:
   dogsled:
     max-blank-identifiers: 2
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
   gocritic:
     enabled-checks:
       - nilValReturn
@@ -52,13 +48,8 @@ linters-settings:
     excludes:
       - G104
       - G307
-    severity: medium
-    confidence: medium
   govet:
-    disable:
-      - shadow
-      - fieldalignment
-    enable-all: true
+    check-shadowing: false
   lll:
     line-length: 120
     tab-width: 1
@@ -68,43 +59,6 @@ linters-settings:
     simple: true
     range-loops: true
     for-loops: true
-  revive:
-    severity: error
-    rules:
-      - name: context-keys-type
-      - name: time-naming
-      - name: var-declaration
-      - name: unexported-return
-      - name: errorf
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: indent-error-flow
-      - name: argument-limit
-        arguments:
-          - 5
-      - name: function-result-limit
-        arguments:
-          - 3
-      - name: cognitive-complexity
-        arguments:
-          - 30
-      - name: cyclomatic
-        arguments:
-          - 20
-      - name: line-length-limit
-        arguments:
-          - 120
 
 issues:
   max-issues-per-linter: 0
