@@ -5,11 +5,34 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// setupFakeCommands creates fake sudo and other command binaries for testing
+func setupFakeCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+	fakeSudo := filepath.Join(tmpDir, "sudo")
+	
+	// Create a fake sudo script that just passes through commands
+	sudoScript := `#!/bin/bash
+exec "$@"
+`
+	err := os.WriteFile(fakeSudo, []byte(sudoScript), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create fake sudo: %v", err)
+	}
+	
+	// Save original PATH and restore after test
+	originalPath := os.Getenv("PATH")
+	t.Cleanup(func() { os.Setenv("PATH", originalPath) })
+	
+	// Prepend tmpDir to PATH so our fake sudo is found first
+	os.Setenv("PATH", tmpDir+":"+originalPath)
+}
 
 // MockExecutor provides a mock implementation for testing.
 type MockExecutor struct {
@@ -124,6 +147,38 @@ func TestNewSecureExecutor(t *testing.T) {
 }
 
 func TestSecureExecutor_RunCloudInit(t *testing.T) {
+	// Create a temporary directory and fake scripts
+	tmpDir := t.TempDir()
+	fakeCloudInit := filepath.Join(tmpDir, "cloud-init")
+	fakeSudo := filepath.Join(tmpDir, "sudo")
+	
+	// Create a fake cloud-init script that succeeds
+	cloudInitScript := `#!/bin/bash
+echo "fake cloud-init clean"
+echo "fake cloud-init init"
+exit 0
+`
+	err := os.WriteFile(fakeCloudInit, []byte(cloudInitScript), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create fake cloud-init: %v", err)
+	}
+	
+	// Create a fake sudo script that just passes through commands
+	sudoScript := `#!/bin/bash
+exec "$@"
+`
+	err = os.WriteFile(fakeSudo, []byte(sudoScript), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create fake sudo: %v", err)
+	}
+	
+	// Save original PATH and restore after test
+	originalPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", originalPath)
+	
+	// Prepend tmpDir to PATH so our fake scripts are found first
+	os.Setenv("PATH", tmpDir+":"+originalPath)
+
 	tests := []struct {
 		name          string
 		privilegeCmd  string
@@ -134,18 +189,18 @@ func TestSecureExecutor_RunCloudInit(t *testing.T) {
 		{
 			name:         "with sudo",
 			privilegeCmd: "sudo",
-			expectError:  true, // Will fail because cloud-init likely doesn't exist in test env
+			expectError:  false, // Should work with fake sudo
 			skipOnNoSudo: true,
 		},
 		{
 			name:         "with doas",
 			privilegeCmd: "doas",
-			expectError:  true,
+			expectError:  true, // doas typically not available
 		},
 		{
 			name:         "without privilege escalation",
 			privilegeCmd: "",
-			expectError:  true, // Will fail because cloud-init likely doesn't exist
+			expectError:  false, // Should work with fake cloud-init
 		},
 		{
 			name:          "unsupported privilege command",
@@ -344,6 +399,7 @@ func TestSecureExecutor_DetectDistribution(t *testing.T) {
 }
 
 func TestSecureExecutor_runPrivilegedSecure(t *testing.T) {
+	setupFakeCommands(t)
 	tests := []struct {
 		name          string
 		privilegeCmd  string
@@ -354,13 +410,12 @@ func TestSecureExecutor_runPrivilegedSecure(t *testing.T) {
 		skipOnNoCmd   bool
 	}{
 		{
-			name:          "echo command with sudo",
-			privilegeCmd:  "sudo",
-			command:       "echo",
-			args:          []string{"test"},
-			expectError:   true, // Will fail if passwordless sudo isn't configured
-			skipOnNoCmd:   true,
-			errorContains: "exit status 1",
+			name:         "echo command with sudo",
+			privilegeCmd: "sudo",
+			command:      "echo",
+			args:         []string{"test"},
+			expectError:  false, // Should work with fake sudo
+			skipOnNoCmd:  true,
 		},
 		{
 			name:         "echo command without privilege",
@@ -539,6 +594,7 @@ func TestSecureExecutor_DetectPrivilegeCommand(t *testing.T) {
 
 // Test security validations.
 func TestSecureExecutor_SecurityValidations(t *testing.T) {
+	setupFakeCommands(t)
 	tests := []struct {
 		name         string
 		privilegeCmd string
@@ -552,8 +608,7 @@ func TestSecureExecutor_SecurityValidations(t *testing.T) {
 			privilegeCmd: "sudo",
 			command:      "echo",
 			args:         []string{"test"},
-			expectError:  true, // Will fail unless passwordless sudo is configured
-			errorMsg:     "exit status 1",
+			expectError:  false, // Should work with fake sudo
 		},
 		{
 			name:         "valid doas command",
