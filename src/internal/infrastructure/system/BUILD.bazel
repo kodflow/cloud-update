@@ -23,4 +23,9 @@ go_test(
         "executor_timeout_test.go",
     ],
     embed = [":system"],
+    timeout = "short",
+    env = {
+        "CI": "true",
+        "GITHUB_ACTIONS": "true",
+    },
 )
