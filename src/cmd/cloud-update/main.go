@@ -26,6 +26,16 @@ import (
 )
 
 func main() {
+	if handleSpecialCommands() {
+		return
+	}
+
+	runServer()
+}
+
+// handleSpecialCommands processes version, help, setup, and uninstall commands.
+// Returns true if a special command was handled and the program should exit.
+func handleSpecialCommands() bool {
 	var (
 		showVersion  = flag.Bool("version", false, "Show version information")
 		showHelp     = flag.Bool("help", false, "Show help")
@@ -36,36 +46,83 @@ func main() {
 
 	if *showHelp {
 		printHelp()
-		os.Exit(0)
+		return true
 	}
 
 	if *showVersion {
 		console.Println(version.GetFullVersion())
-		os.Exit(0)
+		return true
 	}
 
 	if *runSetup {
-		installer := setup.NewServiceInstaller()
-		if err := installer.Setup(); err != nil {
-			fmt.Fprintf(os.Stderr, "Setup failed: %v\n", err)
-			os.Exit(1)
-		}
-		os.Exit(0)
+		handleSetup()
+		return true
 	}
 
 	if *runUninstall {
-		installer := setup.NewServiceInstaller()
-		if err := installer.Uninstall(); err != nil {
-			fmt.Fprintf(os.Stderr, "Uninstall failed: %v\n", err)
-			os.Exit(1)
-		}
-		os.Exit(0)
+		handleUninstall()
+		return true
 	}
 
-	// Load configuration
-	cfg := config.Load()
+	return false
+}
 
-	// Initialize logger
+// Variable to allow testing of os.Exit.
+var osExit = os.Exit
+
+// handleSetup runs the service installation.
+func handleSetup() {
+	installer := setup.NewServiceInstaller()
+	if err := installer.Setup(); err != nil {
+		fmt.Fprintf(os.Stderr, "Setup failed: %v\n", err)
+		osExit(1)
+	}
+}
+
+// handleUninstall runs the service uninstallation.
+func handleUninstall() {
+	installer := setup.NewServiceInstaller()
+	if err := installer.Uninstall(); err != nil {
+		fmt.Fprintf(os.Stderr, "Uninstall failed: %v\n", err)
+		osExit(1)
+	}
+}
+
+// runServer starts the main server.
+func runServer() {
+	cfg := config.Load()
+	initializeLogger(cfg)
+	defer logger.Close()
+
+	components := initializeComponents(cfg)
+	defer components.cleanup()
+
+	setupHTTPRoutes(components)
+	server := createHTTPServer(cfg, components.tlsConfig)
+	startGracefulShutdown(server)
+	startServer(server, components.tlsConfig)
+}
+
+// serverComponents holds all initialized server components.
+type serverComponents struct {
+	authenticator  security.Authenticator
+	workerPool     *worker.Pool
+	actionService  service.ActionService
+	rateLimiter    *ratelimit.RateLimiter
+	healthHandler  *handler.HealthHandler
+	webhookHandler *handler.WebhookHandlerWithPool
+	tlsConfig      *config.TLSConfig
+}
+
+// cleanup performs cleanup for all components.
+func (c *serverComponents) cleanup() {
+	if err := c.workerPool.Shutdown(30 * time.Second); err != nil {
+		logger.Errorf("Failed to shutdown worker pool: %v", err)
+	}
+}
+
+// initializeLogger sets up the logging system.
+func initializeLogger(cfg *config.Config) {
 	logCfg := logger.Config{
 		Level:      cfg.LogLevel,
 		FilePath:   cfg.LogFilePath,
@@ -76,48 +133,78 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		// Continue with stdout logging
 	}
-	defer logger.Close()
+}
 
-	// Initialize components
+// initializeComponents creates and initializes all server components.
+func initializeComponents(cfg *config.Config) *serverComponents {
 	authenticator, authErr := security.NewHMACAuthenticator(cfg.Secret)
 	if authErr != nil {
 		logger.Fatalf("Failed to initialize authenticator: %v", authErr)
 	}
-	// Initialize worker pool for async processing
-	workerPool := worker.NewPool(10, 100) // 10 workers, 100 task backlog
-	defer func() {
-		if err := workerPool.Shutdown(30 * time.Second); err != nil {
-			logger.Errorf("Failed to shutdown worker pool: %v", err)
-		}
-	}()
 
+	workerPool := worker.NewPool(10, 100) // 10 workers, 100 task backlog
 	systemExecutor := system.NewSystemExecutor()
 	actionService := service.NewActionService(systemExecutor)
-
-	// Initialize rate limiter
 	rateLimiter := ratelimit.NewRateLimiter(ratelimit.DefaultConfig())
-
-	// Initialize handlers with worker pool support
 	healthHandler := handler.NewHealthHandler()
 	webhookHandler := handler.NewWebhookHandlerWithPool(actionService, authenticator, workerPool)
 
 	// Start cleanup goroutine for old jobs
 	go webhookHandler.Cleanup()
 
-	// Setup HTTP routes with rate limiting on webhook endpoint
-	http.HandleFunc("/health", healthHandler.HandleHealth)
-	http.HandleFunc("/webhook", rateLimiter.MiddlewareFunc(webhookHandler.HandleWebhook))
-	http.HandleFunc("/job/status", webhookHandler.HandleJobStatus)
-
-	// Load TLS configuration
+	// Load and validate TLS configuration
 	tlsConfig := config.LoadTLSConfig()
 	if err := tlsConfig.Validate(); err != nil {
 		logger.Warnf("TLS configuration error: %v", err)
 		logger.Info("Starting without TLS (HTTP only)")
 	}
 
-	// Start server with proper timeouts
+	return &serverComponents{
+		authenticator:  authenticator,
+		workerPool:     workerPool,
+		actionService:  actionService,
+		rateLimiter:    rateLimiter,
+		healthHandler:  healthHandler,
+		webhookHandler: webhookHandler,
+		tlsConfig:      tlsConfig,
+	}
+}
+
+// setupHTTPRoutes configures all HTTP route handlers.
+func setupHTTPRoutes(components *serverComponents) {
+	http.HandleFunc("/health", components.healthHandler.HandleHealth)
+	http.HandleFunc("/webhook", components.rateLimiter.MiddlewareFunc(components.webhookHandler.HandleWebhook))
+	http.HandleFunc("/job/status", components.webhookHandler.HandleJobStatus)
+}
+
+// createHTTPServer creates and configures the HTTP server.
+func createHTTPServer(cfg *config.Config, tlsConfig *config.TLSConfig) *http.Server {
 	addr := fmt.Sprintf(":%s", cfg.Port)
+	logServerInfo(cfg, addr, tlsConfig)
+
+	var serverTLSConfig *tls.Config
+	if tlsConfig.Enabled && !tlsConfig.Auto {
+		var err error
+		serverTLSConfig, err = tlsConfig.GetTLSConfig()
+		if err != nil {
+			logger.Fatalf("Failed to configure TLS: %v", err)
+		}
+	}
+
+	return &http.Server{
+		Addr:              addr,
+		Handler:           nil, // uses DefaultServeMux
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    1 << 16, // 64KB
+		TLSConfig:         serverTLSConfig,
+	}
+}
+
+// logServerInfo logs server startup information.
+func logServerInfo(cfg *config.Config, addr string, tlsConfig *config.TLSConfig) {
 	protocol := "HTTP"
 	if tlsConfig.Enabled {
 		protocol = "HTTPS"
@@ -129,29 +216,10 @@ func main() {
 	logger.Infof("Log file: /var/log/cloud-update/cloud-update.log")
 	logger.Infof("Rate limiting: %d req/s, burst: %d", 10, 20)
 	logger.Infof("Worker pool: 10 workers, 100 task backlog")
+}
 
-	// Configure TLS if enabled
-	var serverTLSConfig *tls.Config
-	if tlsConfig.Enabled && !tlsConfig.Auto {
-		var err error
-		serverTLSConfig, err = tlsConfig.GetTLSConfig()
-		if err != nil {
-			logger.Fatalf("Failed to configure TLS: %v", err)
-		}
-	}
-
-	server := &http.Server{
-		Addr:              addr,
-		Handler:           nil, // uses DefaultServeMux
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-		MaxHeaderBytes:    1 << 16, // 64KB
-		TLSConfig:         serverTLSConfig,
-	}
-
-	// Graceful shutdown
+// startGracefulShutdown sets up graceful shutdown handling.
+func startGracefulShutdown(server *http.Server) {
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -165,8 +233,10 @@ func main() {
 			logger.Errorf("Server shutdown error: %v", err)
 		}
 	}()
+}
 
-	// Start server
+// startServer starts the HTTP/HTTPS server.
+func startServer(server *http.Server, tlsConfig *config.TLSConfig) {
 	var err error
 	if tlsConfig.Enabled {
 		if tlsConfig.Auto {

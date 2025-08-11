@@ -1,7 +1,7 @@
 #!/bin/sh
 # Cloud Update Installation Script
 # POSIX-compliant script that works on all Linux distributions
-# Usage: curl -sSL https://raw.githubusercontent.com/kodflow/cloud-update/main/install.sh | sh
+# Usage: curl -sSL https://raw.githubusercontent.com/kodflow/cloud-update/main/install.sh | sudo sh
 
 set -e
 
@@ -21,7 +21,6 @@ fi
 # Configuration
 GITHUB_REPO="kodflow/cloud-update"
 INSTALL_DIR="/usr/local/bin"
-SERVICE_DIR="/etc/systemd/system"
 BINARY_NAME="cloud-update"
 
 # Functions
@@ -72,23 +71,10 @@ detect_arch() {
     esac
 }
 
-# Detect init system
-detect_init() {
-    if [ -d /run/systemd/system ]; then
-        echo "systemd"
-    elif [ -f /sbin/openrc ]; then
-        echo "openrc"
-    elif [ -f /etc/init.d/cron ] && [ ! -d /run/systemd/system ]; then
-        echo "sysvinit"
-    else
-        echo "unknown"
-    fi
-}
-
 # Check if running as root
 check_root() {
     if [ "$(id -u)" != "0" ]; then
-        log_error "This script must be run as root"
+        log_error "This script must be run as root (use sudo)"
     fi
 }
 
@@ -111,254 +97,54 @@ download_binary() {
     fi
     
     chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
-    log_info "Binary installed to ${INSTALL_DIR}/${BINARY_NAME}"
+    log_info "Binary downloaded to ${INSTALL_DIR}/${BINARY_NAME}"
 }
 
-# Install systemd service
-install_systemd() {
-    log_info "Installing systemd service..."
+# Install service using the binary's built-in installer
+install_service() {
+    log_info "Installing service using built-in installer..."
     
-    cat > "${SERVICE_DIR}/${BINARY_NAME}.service" <<EOF
-[Unit]
-Description=Cloud Update Agent
-After=network.target
-
-[Service]
-Type=simple
-User=root
-EnvironmentFile=-/etc/default/${BINARY_NAME}
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} serve
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    # Create default environment file
-    cat > "/etc/default/${BINARY_NAME}" <<EOF
-# Cloud Update Configuration
-# Set your webhook secret here
-CLOUD_UPDATE_SECRET=change-me-$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
-CLOUD_UPDATE_PORT=9999
-CLOUD_UPDATE_LOG_LEVEL=info
-EOF
-    
-    chmod 600 "/etc/default/${BINARY_NAME}"
-    
-    systemctl daemon-reload
-    log_info "Systemd service installed"
-    log_warn "Please edit /etc/default/${BINARY_NAME} to set your webhook secret"
-}
-
-# Install OpenRC service
-install_openrc() {
-    log_info "Installing OpenRC service..."
-    
-    cat > "/etc/init.d/${BINARY_NAME}" <<'EOF'
-#!/sbin/openrc-run
-
-name="Cloud Update"
-description="Cloud Update Agent"
-command="/usr/local/bin/cloud-update"
-command_args="serve"
-command_background=true
-pidfile="/run/${RC_SVCNAME}.pid"
-start_stop_daemon_args="--env CLOUD_UPDATE_SECRET=${CLOUD_UPDATE_SECRET:-change-me}"
-
-depend() {
-    need net
-    after firewall
-}
-
-start_pre() {
-    checkpath --directory --owner root:root --mode 0755 /var/log/cloud-update
-    checkpath --directory --owner root:root --mode 0755 /var/lib/cloud-update
-}
-EOF
-    
-    chmod +x "/etc/init.d/${BINARY_NAME}"
-    
-    # Create configuration file
-    cat > "/etc/conf.d/${BINARY_NAME}" <<EOF
-# Cloud Update Configuration
-CLOUD_UPDATE_SECRET="change-me-$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-CLOUD_UPDATE_PORT="9999"
-CLOUD_UPDATE_LOG_LEVEL="info"
-EOF
-    
-    chmod 600 "/etc/conf.d/${BINARY_NAME}"
-    
-    log_info "OpenRC service installed"
-    log_warn "Please edit /etc/conf.d/${BINARY_NAME} to set your webhook secret"
-}
-
-# Install sysvinit service
-install_sysvinit() {
-    log_info "Installing SysVinit service..."
-    
-    cat > "/etc/init.d/${BINARY_NAME}" <<'EOF'
-#!/bin/sh
-### BEGIN INIT INFO
-# Provides:          cloud-update
-# Required-Start:    $network $remote_fs
-# Required-Stop:     $network $remote_fs
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: Cloud Update Agent
-# Description:       Cloud Update system update agent
-### END INIT INFO
-
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
-DESC="Cloud Update Agent"
-NAME=cloud-update
-DAEMON=/usr/local/bin/$NAME
-DAEMON_ARGS="serve"
-PIDFILE=/var/run/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
-
-# Load configuration
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
-
-# Export environment variables
-export CLOUD_UPDATE_SECRET
-export CLOUD_UPDATE_PORT
-export CLOUD_UPDATE_LOG_LEVEL
-
-. /lib/lsb/init-functions
-
-do_start() {
-    start-stop-daemon --start --quiet --pidfile $PIDFILE \
-        --make-pidfile --background \
-        --exec $DAEMON -- $DAEMON_ARGS \
-        || return 2
-}
-
-do_stop() {
-    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 \
-        --pidfile $PIDFILE --name $NAME
-    RETVAL="$?"
-    rm -f $PIDFILE
-    return "$RETVAL"
-}
-
-case "$1" in
-    start)
-        log_daemon_msg "Starting $DESC" "$NAME"
-        do_start
-        case "$?" in
-            0|1) log_end_msg 0 ;;
-            2) log_end_msg 1 ;;
-        esac
-        ;;
-    stop)
-        log_daemon_msg "Stopping $DESC" "$NAME"
-        do_stop
-        case "$?" in
-            0|1) log_end_msg 0 ;;
-            2) log_end_msg 1 ;;
-        esac
-        ;;
-    restart|force-reload)
-        log_daemon_msg "Restarting $DESC" "$NAME"
-        do_stop
-        case "$?" in
-            0|1)
-                do_start
-                case "$?" in
-                    0) log_end_msg 0 ;;
-                    1) log_end_msg 1 ;;
-                    *) log_end_msg 1 ;;
-                esac
-                ;;
-            *)
-                log_end_msg 1
-                ;;
-        esac
-        ;;
-    status)
-        status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
-        ;;
-    *)
-        echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
-        exit 3
-        ;;
-esac
-EOF
-    
-    chmod +x "/etc/init.d/${BINARY_NAME}"
-    
-    # Create default configuration
-    cat > "/etc/default/${BINARY_NAME}" <<EOF
-# Cloud Update Configuration
-CLOUD_UPDATE_SECRET="change-me-$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-CLOUD_UPDATE_PORT="9999"
-CLOUD_UPDATE_LOG_LEVEL="info"
-EOF
-    
-    chmod 600 "/etc/default/${BINARY_NAME}"
-    
-    # Enable service
-    if command -v update-rc.d >/dev/null 2>&1; then
-        update-rc.d "${BINARY_NAME}" defaults
-    elif command -v chkconfig >/dev/null 2>&1; then
-        chkconfig --add "${BINARY_NAME}"
+    # Use the binary's setup command which handles all init systems
+    if "${INSTALL_DIR}/${BINARY_NAME}" --setup; then
+        log_info "Service installation completed successfully"
+    else
+        log_error "Service installation failed"
     fi
-    
-    log_info "SysVinit service installed"
-    log_warn "Please edit /etc/default/${BINARY_NAME} to set your webhook secret"
-}
-
-# Create necessary directories
-create_directories() {
-    log_info "Creating directories..."
-    mkdir -p /var/log/cloud-update
-    mkdir -p /var/lib/cloud-update
-    chmod 755 /var/log/cloud-update
-    chmod 755 /var/lib/cloud-update
 }
 
 # Main installation
 main() {
-    log_info "Starting Cloud Update installation..."
+    log_info "🚀 Starting Cloud Update installation..."
     
     # Check prerequisites
     check_root
     
-    # Create directories
-    create_directories
-    
     # Download binary
     download_binary
     
-    # Install service based on init system
-    INIT_SYSTEM=$(detect_init)
-    case "$INIT_SYSTEM" in
-        systemd)
-            install_systemd
-            log_info "To start the service: systemctl start ${BINARY_NAME}"
-            log_info "To enable at boot: systemctl enable ${BINARY_NAME}"
-            ;;
-        openrc)
-            install_openrc
-            log_info "To start the service: rc-service ${BINARY_NAME} start"
-            log_info "To enable at boot: rc-update add ${BINARY_NAME} default"
-            ;;
-        sysvinit)
-            install_sysvinit
-            log_info "To start the service: service ${BINARY_NAME} start"
-            ;;
-        *)
-            log_warn "Unknown init system. Service not installed."
-            log_warn "You can run the binary manually: ${INSTALL_DIR}/${BINARY_NAME} serve"
-            ;;
-    esac
+    # Verify download
+    if "${INSTALL_DIR}/${BINARY_NAME}" version >/dev/null 2>&1; then
+        VERSION=$("${INSTALL_DIR}/${BINARY_NAME}" version 2>/dev/null || echo 'unknown')
+        log_info "✅ Binary verified - Version: ${VERSION}"
+    else
+        log_error "Downloaded binary is not working correctly"
+    fi
     
-    log_info "Installation complete!"
-    log_info "Binary location: ${INSTALL_DIR}/${BINARY_NAME}"
-    log_info "Version: $(${INSTALL_DIR}/${BINARY_NAME} version 2>/dev/null || echo 'unknown')"
+    # Install service using the binary's built-in setup
+    install_service
+    
+    log_info "🎉 Installation complete!"
+    log_info ""
+    log_info "📍 Binary location: ${INSTALL_DIR}/${BINARY_NAME}"
+    log_info "📄 Configuration: /etc/cloud-update/config.env"
+    log_info ""
+    log_info "🔧 Next steps:"
+    log_info "1. Edit the secret: sudo nano /etc/cloud-update/config.env"
+    log_info "2. Start service: sudo systemctl start cloud-update"
+    log_info "3. Enable at boot: sudo systemctl enable cloud-update"
+    log_info "4. Check status: sudo systemctl status cloud-update"
+    log_info ""
+    log_info "📖 Documentation: https://github.com/${GITHUB_REPO}#readme"
 }
 
 # Run main function

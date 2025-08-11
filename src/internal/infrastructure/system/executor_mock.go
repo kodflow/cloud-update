@@ -101,6 +101,11 @@ func (m *MockExecutor) Reboot() error {
 
 // UpdateSystem mocks the system update process.
 func (m *MockExecutor) UpdateSystem() error {
+	// Call DetectDistribution and RunCloudInit to mimic real behavior
+	// These need to be called before locking to avoid deadlock
+	m.DetectDistribution()
+	m.RunCloudInit()
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

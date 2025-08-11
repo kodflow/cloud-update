@@ -137,7 +137,7 @@ export CLOUD_UPDATE_LOG_LEVEL ?= debug
 
 ## test: run all tests with quality checks
 .PHONY: test
-test: quality/analyze test/unit test/e2e
+test: quality/format quality/analyze test/unit test/e2e
 	@echo "$(GREEN)✓ All tests and quality checks passed$(NC)"
 
 ## test/unit: run unit tests
@@ -202,10 +202,16 @@ quality/analyze: quality/format quality/lint quality/security quality/secrets
 .PHONY: quality/format
 quality/format:
 	@echo "$(YELLOW)▶ Formatting Go code...$(NC)"
-	@gofmt -s -w .
 	@if command -v goimports > /dev/null 2>&1; then \
+		echo "  → Running goimports..."; \
+		goimports -w -local github.com/kodflow/cloud-update .; \
+	else \
+		echo "$(YELLOW)  ⚠ goimports not installed, installing...$(NC)"; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
 		goimports -w -local github.com/kodflow/cloud-update .; \
 	fi
+	@echo "  → Running gofmt..."
+	@gofmt -s -w .
 	@echo "$(YELLOW)▶ Formatting YAML/JSON/MD files...$(NC)"
 	@if command -v prettier > /dev/null 2>&1; then \
 		prettier --write "**/*.{yml,yaml,json,md}" --ignore-path .prettierignore 2>/dev/null || echo "$(YELLOW)Some files skipped due to syntax issues$(NC)"; \
@@ -248,10 +254,16 @@ quality/secrets:
 .PHONY: quality/fix
 quality/fix:
 	@echo "$(YELLOW)▶ Auto-fixing issues...$(NC)"
-	@gofmt -s -w .
 	@if command -v goimports > /dev/null 2>&1; then \
+		echo "  → Running goimports..."; \
+		goimports -w -local github.com/kodflow/cloud-update .; \
+	else \
+		echo "$(YELLOW)  ⚠ goimports not installed, installing...$(NC)"; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
 		goimports -w -local github.com/kodflow/cloud-update .; \
 	fi
+	@echo "  → Running gofmt..."
+	@gofmt -s -w .
 	@$(GOLANGCI_LINT) run --fix $(SRC_PATH) 2>/dev/null || true
 	@if command -v prettier > /dev/null 2>&1; then \
 		prettier --write "**/*.{yml,yaml,json,md}" --ignore-path .prettierignore 2>/dev/null || true; \

@@ -2,7 +2,7 @@
 
 name="Cloud Update Service"
 description="Cloud configuration update service with webhook support"
-command="/opt/cloud-update/cloud-update"
+command="/usr/local/bin/cloud-update"
 command_background=true
 pidfile="/run/${RC_SVCNAME}.pid"
 start_stop_daemon_args="--env CLOUD_UPDATE_CONFIG_PATH=/etc/cloud-update/config.env"

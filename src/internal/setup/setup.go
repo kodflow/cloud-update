@@ -14,7 +14,7 @@ import (
 
 // Installation constants.
 const (
-	InstallDir = "/opt/cloud-update"
+	InstallDir = "/usr/local/bin"
 	ConfigDir  = "/etc/cloud-update"
 	BinaryName = "cloud-update"
 
@@ -141,6 +141,12 @@ func (s *ServiceInstaller) installBinary() error {
 	}
 
 	destPath := filepath.Join(InstallDir, BinaryName)
+
+	// Check if we're trying to copy the file to itself
+	if execPath == destPath {
+		fmt.Printf("  ✓ Binary already installed at %s\n", destPath)
+		return nil
+	}
 
 	// Copy binary
 	input, err := s.fs.ReadFile(execPath) //nolint:gosec // execPath comes from os.Executable()

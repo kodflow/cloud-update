@@ -11,22 +11,21 @@ RUN mkdir -p /run/openrc && \
     touch /run/openrc/softlevel && \
     rc-status || (echo "Setup failed, but continuing for testing..." && exit 0)
 
-# Copy the pre-built binary and install script
+# Copy the pre-built binary
 WORKDIR /app
-# First try to copy from test directory, fallback to dist
-COPY src/test/e2e/cloud-update /app/cloud-update
-COPY scripts/install.sh /app/install.sh
+# Copy from project root (context is ../../..)
+COPY src/test/e2e/cloud-update /usr/local/bin/cloud-update
 
-# Make scripts executable
-RUN chmod 755 /app/cloud-update /app/install.sh
+# Make binary executable
+RUN chmod 755 /usr/local/bin/cloud-update
 
 # Set test environment variables
 ENV CLOUD_UPDATE_SECRET=test-secret-key-for-e2e-testing-purposes-only
 ENV CLOUD_UPDATE_PORT=8080
 ENV CLOUD_UPDATE_LOG_LEVEL=debug
 
-# Run installation with sh (POSIX-compliant)
-RUN sh /app/install.sh
+# Run setup using the binary directly
+RUN /usr/local/bin/cloud-update --setup
 
 # Health check
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
@@ -35,4 +34,4 @@ HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
 EXPOSE 8080
 
 # Start the service directly
-CMD ["/opt/cloud-update/cloud-update"]
+CMD ["/usr/local/bin/cloud-update"]
