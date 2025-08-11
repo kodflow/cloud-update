@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestSlog_BasicFunctionality tests the essential slog functions
+// TestSlog_BasicFunctionality tests the essential slog functions.
 func TestSlog_BasicFunctionality(t *testing.T) {
 	CloseSlog()
 	defer CloseSlog()
@@ -34,7 +34,7 @@ func TestSlog_BasicFunctionality(t *testing.T) {
 	}
 }
 
-// TestSlog_WithError tests LogError with actual error
+// TestSlog_WithError tests LogError with actual error.
 func TestSlog_WithError(t *testing.T) {
 	CloseSlog()
 	defer CloseSlog()
@@ -57,7 +57,7 @@ func TestSlog_WithError(t *testing.T) {
 	LogError("Test nil error", nil)
 }
 
-// TestSlog_GetLogger tests GetSlog function
+// TestSlog_GetLogger tests GetSlog function.
 func TestSlog_GetLogger(t *testing.T) {
 	CloseSlog()
 	defer CloseSlog()

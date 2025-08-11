@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestLogger_BasicFunctionality tests the essential logger functions
+// TestLogger_BasicFunctionality tests the essential logger functions.
 func TestLogger_BasicFunctionality(t *testing.T) {
 	Close()
 	defer Close()
@@ -34,7 +34,7 @@ func TestLogger_BasicFunctionality(t *testing.T) {
 	}
 }
 
-// TestLogger_WithFieldsBasic tests WithFields functionality
+// TestLogger_WithFieldsBasic tests WithFields functionality.
 func TestLogger_WithFieldsBasic(t *testing.T) {
 	Close()
 	defer Close()
@@ -53,7 +53,7 @@ func TestLogger_WithFieldsBasic(t *testing.T) {
 	WithFields(map[string]interface{}{"user": "test"}).Info("User action")
 }
 
-// TestLogger_InvalidLevel tests invalid log level handling
+// TestLogger_InvalidLevel tests invalid log level handling.
 func TestLogger_InvalidLevel(t *testing.T) {
 	Close()
 	defer Close()
