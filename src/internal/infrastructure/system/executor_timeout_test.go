@@ -981,24 +981,6 @@ func TestExecutorWithTimeout_RebootWithDelay_ActualTimeout(t *testing.T) {
 	}
 }
 
-// slowTimeoutExecutor is a mock that helps test timeout conditions.
-type slowTimeoutExecutor struct {
-	*ExecutorWithTimeout
-}
-
-func (s *slowTimeoutExecutor) RebootWithDelay(delay time.Duration) error {
-	// Override with a very short timeout to force timeout condition
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
-	defer cancel()
-
-	// Simulate timeout immediately
-	<-ctx.Done()
-	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("reboot command timed out")
-	}
-	return fmt.Errorf("reboot scheduling failed: %w", ctx.Err())
-}
-
 // mockTimeoutExecutor provides a mock implementation for testing timeout functionality.
 type mockTimeoutExecutor struct {
 	distribution    Distribution
