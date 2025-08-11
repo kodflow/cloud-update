@@ -106,11 +106,6 @@ func TestExecutorInterfaceCompliance(t *testing.T) {
 func TestExecutorPrivilegeCommandHandling(t *testing.T) {
 	executor := &DefaultExecutor{privilegeCmd: ""}
 
-	// Test that the struct can be created
-	if executor == nil {
-		t.Error("DefaultExecutor should not be nil")
-	}
-
 	// Test with different privilege commands
 	executor.privilegeCmd = "sudo"
 	if executor.privilegeCmd != "sudo" {
