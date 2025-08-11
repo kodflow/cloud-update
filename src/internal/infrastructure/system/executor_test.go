@@ -9,11 +9,6 @@ import (
 	"testing"
 )
 
-// isCI returns true if running in CI environment
-func isCI() bool {
-	return os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true"
-}
-
 func TestDetectDistribution(t *testing.T) {
 	executor := &DefaultExecutor{}
 

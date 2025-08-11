@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// setupFakeCommands creates fake sudo and other command binaries for testing
+// setupFakeCommands creates fake sudo and other command binaries for testing.
 func setupFakeCommands(t *testing.T) {
 	tmpDir := t.TempDir()
 	fakeSudo := filepath.Join(tmpDir, "sudo")
